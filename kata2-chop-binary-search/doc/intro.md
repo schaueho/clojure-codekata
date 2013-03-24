@@ -21,6 +21,23 @@ returned non-nil values. This led to the following code:
       -1
       (first result))))
 
+Some points may be of interest here:
+- Looking over some code, I ran into the usage of %1 etc. to refer to
+  implicit arguments, which I didn't knew about when I started
+  out. This version screams 'Common Lisp' pretty much all over.
+- I also ran into the empty sequence <> false issue, of course and had
+  to look up 'empty?' as well.
+- Using 'when' instead of 'if' when you only care about the true state
+  is an idiom I knew and love from CL. The 'if' part at the end is 
+  still ugly. We could get rid of it by relying on 'first' on an empty
+  sequence to return nil and using this in a boolean comparison.
+
+This leads to the following much shorter version:
+
+(defn chop [x coll]
+  (let [result (keep-indexed #(when (= %2 x) %1) coll)]
+    (or (first result) -1)))
+
 
  
 
