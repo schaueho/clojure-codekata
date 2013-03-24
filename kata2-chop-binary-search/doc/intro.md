@@ -38,6 +38,45 @@ This leads to the following much shorter version:
   (let [result (keep-indexed #(when (= %2 x) %1) coll)]
     (or (first result) -1)))
 
+The next idea is to use a multi-method approach, dispatching on either
+values, possibly empty ones and on type, of course. This is an
+approach which I think should be possible with CLOS, but is quite
+outside of mainstream object-oriented languages like Java or Python.
+We could combine this with a recursive approach. One base case of the
+recursion would be the empty collection, of course, with the other one
+being finding the searched value, returning the current index in the
+sequence which we have to carry around (straight forward
+recursion). ClojureDocs example 683 has a nice blue print
+(http://clojuredocs.org/clojure_core/clojure.core/defmulti#example_683).
+
+(derive clojure.lang.Sequential ::collection)
+(defmulti chop-helper
+  (fn [x coll idx]
+    (if (empty? coll) coll
+        (type coll))))
+(defmethod chop-helper [] [x coll idx]  -1)
+(defmethod chop-helper ::collection [x coll idx]
+  (if (= x (first coll))
+    idx
+    (chop-helper x (rest coll) (inc idx))))
+(defmethod chop-helper :default [x coll] :oops)  
+(defn chop [x coll]
+  (chop-helper x coll 0))
+
+Figuring this one out required me to understand that Clojure really
+uses a pretty normal function for the dispatch in the defmulti
+declaration, whereas I was reading the first code examples quite
+similar to CL's more simple argument type and value dispatch. As I
+wanted to dispatch on value (empty collection) and on type
+(collection), I need to setup an according dispatch function.
+I am still quite unaware of Clojures ad hoc hierachy system, so I'm
+not convinced that my use of derive and henceforth use of this 'type'
+couldn't be simplified.
+
+
+
+
+
 
  
 
