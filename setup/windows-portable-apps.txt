@@ -67,17 +67,29 @@ Emacs configuration (slime / clojure-mode):
 Installing leiningen:
 - There are two ways: either downloading lein.bat and running it from
 cmd or downloading lein, the shell script and running it via the git
-bash prompt. I chose the latter.
+bash prompt. I chose the latter. You will probably need to adjust
+your path to where you put the lein shell script, e.g. (bash syntax):
+  export PATH=$PATH:/f/progs/clojure/
 - To install leiningen locally (i.e. not in your %HOME%), you have to
 set the LEIN_HOME environment variable, i.e. like this (bash syntax):
   export LEIN_HOME=/f/progs/clojure
-Then run 'lein self-install'. Remember to always set this variable
-afterwards before running leiningen commands.
+Remember to always set this variable afterwards before running
+leiningen commands. 
 - Point your classpath to where you installed clojure: 
   export CLASSPATH=/f/progs/clojure/clojure-1.2.1/clojure-1.2.1
+- If you also want to keep the files / jars which leiningen retrieves
+  in a local, non-standard maven repository, you need to set
+  a variable in your $LEIN_HOME/profiles.clj file, like this:
+{:user  {;Location of local repository 
+         :local-repo "f://progs/clojure/.m2/"
+         ;Location of locally installed jars
+         ;(that can't be downloaded from public repo's)
+         :repositories  {"local" {:url "file://f/progs/clojure/.m2"
+                                  :releases {:checksum :ignore}}}}}
+- Then run 'lein self-install'. 
 - Afterwards, a 'lein repl' should give you a Clojure
   read-eval-print-loop.
-- Put the following into ~/.lein/profiles.clj:
+- Put the following into $LEIN_HOME/profiles.clj
 {:user {:plugins [[lein-gentags "0.0.2-SNAPSHOT"]
                   [lein-marginalia "0.7.0-20111019.122151-1"]
                   [lein-pprint "1.1.1"]
