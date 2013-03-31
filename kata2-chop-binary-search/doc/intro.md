@@ -74,7 +74,17 @@ not convinced that my use of derive and henceforth use of this 'type'
 couldn't be simplified.
 
 
+The alert reader might have noticed that so far, although all
+solutions gave correct results on the tests provided, none of the
+implementations was actually correct when it comes to sticking to the
+task description, which clearly refers to not only implement /some/
+search, but a binary one. To put it otherwise: the first solutions are
+actually implementations of a linear search.
 
+Binary search amounts to a simple divide and conquer (search)
+strategy: you compare the value in the middle, and if what you looked
+for is smaller, you repeat with the lower half of the collection,
+otherwise you repeat with the upper part of the collection.
 
 
 
