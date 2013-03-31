@@ -76,7 +76,7 @@ set the LEIN_HOME environment variable, i.e. like this (bash syntax):
 Remember to always set this variable afterwards before running
 leiningen commands. 
 - Point your classpath to where you installed clojure: 
-  export CLASSPATH=/f/progs/clojure/clojure-1.2.1/clojure-1.2.1
+  export CLASSPATH=/f/progs/clojure/clojure-1.5.0/clojure-1.5.0
 - If you also want to keep the files / jars which leiningen retrieves
   in a local, non-standard maven repository, you need to set
   a variable in your $LEIN_HOME/profiles.clj file, like this:
@@ -93,9 +93,11 @@ leiningen commands.
 {:user {:plugins [[lein-gentags "0.0.2-SNAPSHOT"]
                   [lein-marginalia "0.7.0-20111019.122151-1"]
                   [lein-pprint "1.1.1"]
-                  [lein-swank "1.4.2"]
+                  [lein-swank "1.4.5"]
                   [org.clojure/tools.logging "0.2.3"]]}}
-
+This will give you the possibility to run 'lein swank' -- using
+lein-swank versio 1.4.5 is important, if you want to use it with
+clojure 1.5.0.
 
 
 
