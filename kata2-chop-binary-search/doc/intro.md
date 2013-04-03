@@ -29,7 +29,7 @@ This leads to the following much shorter version:
 		(or (first result) -1)))
 
 The next idea is to use a multi-method approach, dispatching on either values, possibly empty ones and on type, of course. This is an approach which I think should be possible with CLOS, but is quite
-outside of mainstream object-oriented languages like Java or Python. We could combine this with a recursive approach. One base case of the recursion would be the empty collection, of course, with the other one being finding the searched value, returning the current index in the sequence which we have to carry around (straight forward recursion). ClojureDocs example 683 has a nice blue print (<http://clojuredocs.org/clojure_core/clojure.core/defmulti#example_683>).
+outside of mainstream object-oriented languages like Java or Python. We could combine this with a recursive approach. One base case of the recursion would be the empty collection, of course, with the other one being finding the searched value, returning the current index in the sequence which we have to carry around (straight forward recursion). ClojureDocs example 683 has a nice blue print (<http://clojuredocs.org/clojure_core/clojure.core/defmulti#example_683>). The result has a nice declarative touch to it, which reminds me of my old Prolog days: 
 
     (derive clojure.lang.Sequential ::collection)
     (defmulti chop-helper
