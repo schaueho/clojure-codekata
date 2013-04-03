@@ -1,6 +1,8 @@
 (ns kata2-chop-binary-search.core)
 
-(defn chop-keep-indexed [x coll]
+(defn chop-keep-indexed
+  "Simple search using a lazy sequence"
+  [x coll]
   (let [result
         (keep-indexed
          (fn [idx item]
@@ -10,12 +12,15 @@
       -1
       (first result))))
 
-(defn chop-keep-indexed-short [x coll]
+(defn chop-keep-indexed-short
+  "Simple search using a lazy sequence, more idiomic"
+  [x coll]
   (let [result (keep-indexed #(when (= %2 x) %1) coll)]
     (or (first result) -1)))
 
 (derive clojure.lang.Sequential ::collection)
 (defmulti chop-helper
+  "Dispatch function returning the empty collection or the type of the collection"
   (fn [x coll idx]
     (if (empty? coll) coll
         (type coll))))
@@ -25,29 +30,41 @@
     idx
     (chop-helper x (rest coll) (inc idx))))
 (defmethod chop-helper :default [x coll] :oops)  
-(defn chop-multi [x coll]
+(defn chop-multi
+  "Multi-method recursive approach to linear search"
+  [x coll]
   (chop-helper x coll 0))
 
 
-(defn halve [coll comp]
-       (let [len (count coll)
-              half (/ len 2)]
-         (keep-indexed #(if (comp %1 half) %2) coll)))
+(defn chop-bin-vec-optarg
+  "Recursive binary search of a vector with optional argument destructuring for accumulator"
+  [x vec & {:keys [acc] :or {acc 0}}]
+  (let [len (count vec)
+        middle (Math/round (Math/floor (/ len 2)))]
+    ; (println x vec acc :middle middle)
+    (cond (empty? vec) -1
+          (= x (nth vec middle)) (+ acc middle)
+          (and (< x (nth vec middle))
+               (>= middle 0))
+             (recur x (subvec vec 0 middle) {:acc acc})
+          (and (> x (nth vec middle))
+               (<= (inc middle) len))
+             (recur x (subvec vec (inc middle) len) {:acc (inc middle)})))) 
 
-(defn chop [x coll]
-  (let [len (count coll)
-        mididx (Math/round (Math/ceil (/ len 2)))
-        first-half (halve coll <)
-        second-half (halve coll >)
-        half-value (last first-half)]
-    (cond (= x half-value) (- mididx 1)
-          (and (< x half-value)
-               (not (empty? first-half)))
-            (chop x first-half)
-          (and (> x half-value)
-               (not (empty? second-half)))
-            (let [res-sh (chop x second-half)]
-              (if (= res-sh -1)
-                -1
-                (+ mididx res-sh)))
-          true -1)))
+(defn chop
+  "Recursive binary search of a vector"
+  ([x vec]
+     (chop x vec 0))
+  ([x vec acc]
+     (let [len (count vec)
+           middle (Math/round (Math/floor (/ len 2)))]
+       ;; (println x vec acc :middle middle)
+       (cond (empty? vec) -1
+             (= x (nth vec middle))
+               (+ acc middle)
+             (and (< x (nth vec middle))
+                  (>= middle 0))
+               (recur x (subvec vec 0 middle) acc)
+             (and (> x (nth vec middle))
+                  (<= (inc middle) len))
+               (recur x (subvec vec (inc middle) len) (inc middle))))))
