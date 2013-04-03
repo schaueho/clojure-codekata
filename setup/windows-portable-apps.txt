@@ -1,103 +1,85 @@
-While not being a kata, setup of the environment in which it's
-possible to do the programming for them is a task that needs to be
-fulfilled anyway. I hence see that as some sort of a separate kata,
-to familiarize oneself with various development environments.
+While not being a kata, setup of the environment in which it's possible to do the programming for them is a task that needs to be fulfilled anyway. I hence see that as some sort of a separate kata, to familiarize oneself with various development environments.
 
-These are the requirements for setting up a Clojure development
-environment on Windows using portable apps.
+These are the requirements for setting up a Clojure development environment on Windows using portable apps.
 
 Requirements:
-- All portable applications are available on drive F:
-  This is a USB stick in my case.
+
+- All portable applications are available on drive `F:` This is a USB stick in my case.
 - We'll need git, emacs and clojure of course.
-- We'll also need slime, the superior lisp interaction
-  mode for emacs to communicate with clojure. We'll
-  also need clojure-mode.
+- We'll also need slime, the superior lisp interaction mode for emacs to communicate with clojure. We'll also need clojure-mode.
 - We'll also need leiningen at some later stage.
-- Configuration of the application will be stored on
-  the external drive (e.g. F:) as well where possible.
+- Configuration of the application will be stored on the external drive (e.g. `F:`) as well where possible.
 
 
 Solution:
 
-Downloads (TODO: exact URLs):
-- Emacs (24.2 at the time of writing) can be downloaded from
-  the FSF (http://ftp.gnu.org/gnu/emacs/windows/)
-- git (1.7.6 at the time of writing) can be downloaded from
-  msys (http://code.google.com/p/msysgit/)
-- clojure (1.2.1 at the time of writing) can be downloaded
-  from clojure.org, of course.
-- leiningen (1.6.2 at the time of writing) can be downloaded
-  from (https://github.com/technomancy/leiningen)
-- slime (in elpa-2010 version from https://github.com/technomancy/slime/)
-- clojure-mode (https://github.com/technomancy/clojure-mode)
-- paredit (http://mumble.net/~campbell/emacs/paredit.el)
+- Emacs (24.2 at the time of writing) can be downloaded from the FSF (<http://ftp.gnu.org/gnu/emacs/windows/>)
+- git (1.7.6 at the time of writing) can be downloaded from msys (<http://code.google.com/p/msysgit/>)
+- clojure (1.2.1 at the time of writing) can be downloaded from <clojure.org>, of course.
+- leiningen (1.6.2 at the time of writing) can be downloaded from <https://github.com/technomancy/leiningen>
+- slime (in elpa-2010 version from <https://github.com/technomancy/slime/>)
+- clojure-mode (<https://github.com/technomancy/clojure-mode>)
+- paredit (<http://mumble.net/~campbell/emacs/paredit.el>)
 
 Directory layout:
-- All applications are stored under F:\progs\
-- E.g. Emacs 24.2 will end up as F:\progs\emacs-24.2\
-- I'll put in lein.bat into the clojure directory, though.
+
+- All applications are stored under `F:\\progs\`
+- E.g. Emacs 24.2 will end up as `F:\\progs\emacs-24.2\`
+- I'll put `lein.bat` into the clojure directory, though.
 
 Emacs configuration (slime / clojure-mode):
 
-- I'll put all private configurations in a separate
-  directory on F:, namely in F:\emacs\. 
-- As I already have quite a lot of emacs configuration,
-  I'm going to put all configuration options into separate
-  files, which are placed in F:\emacs\elisp\config\
-- Code from other people will go in separate directories
-  as well, with F:\emacs\elisp\others\ as the top-level
-  folder.
-- slime hence goes to F:\emacs\elisp\others\slime-2011-09-26
-- clojure-mode hence goes to F:\emacs\elisp\others\clojure-mode
-- Emacs looks for default.el or site-start.el during startup
-  to look for personal or site-wide configuration. Both files
-  can be placed in the site-lisp directory, i.e. in
-  F:\progs\emacs-24.2\site-lisp\
-- Content of F:\progs\emacs-24.2\site-lisp\default.el:
-(setq load-path 
-      (append '("f:/emacs/elisp/"
-		"f:/emacs/elisp/config/" 
-		"f:/emacs/elisp/others/slime-2011-09-26/" 
-		"f:/emacs/elisp/others/clojure-mode/")
-	      load-path))
+- I'll put all private configurations in a separate directory on `F:`, namely in `F:\\emacs\`. 
+- As I already have quite a lot of emacs configuration, I'm going to put all configuration options into separate files, which are placed in `F:\\emacs\elisp\config\`
+- Code from other people will go in separate directories as well, with `F:\\emacs\elisp\others\` as the top-level folder.
+- slime hence goes to `F:\\emacs\elisp\others\slime-2011-09-26`
+- clojure-mode hence goes to `F:\\emacs\elisp\others\clojure-mode`
+- Emacs looks for default.el or site-start.el during startup to look for personal or site-wide configuration. Both files can be placed in the site-lisp directory, i.e. in `F:\\progs\emacs-24.2\site-lisp\`
+- Next we need to adopt the load-path, where Emacs looks for libraries. This means we need to put some content in `F:\\progs\emacs-24.2\site-lisp\default.el`:
 
-(load-library "emacs.dot")
+	(setq load-path 
+	    (append '("f:/emacs/elisp/"
+		      "f:/emacs/elisp/config/" 
+		      "f:/emacs/elisp/others/slime-2011-09-26/" 
+		      "f:/emacs/elisp/others/clojure-mode/")
+	      load-path))
+    (load-library "emacs.dot")
 
 Installing leiningen:
-- There are two ways: either downloading lein.bat and running it from
-cmd or downloading lein, the shell script and running it via the git
-bash prompt. I chose the latter. You will probably need to adjust
-your path to where you put the lein shell script, e.g. (bash syntax):
-  export PATH=$PATH:/f/progs/clojure/
-- To install leiningen locally (i.e. not in your %HOME%), you have to
-set the LEIN_HOME environment variable, i.e. like this (bash syntax):
-  export LEIN_HOME=/f/progs/clojure
-Remember to always set this variable afterwards before running
-leiningen commands. 
+
+- There are two ways: either downloading lein.bat and running it from cmd or downloading lein, the shell script and running it via the git bash prompt. I chose the latter. You will probably need to adjust your path to where you put the lein shell script, e.g. (bash syntax):
+
+	export PATH=$PATH:/f/progs/clojure/
+
+- To install leiningen locally (i.e. not in your `%HOME%`), you have to set the `LEIN_HOME` environment variable, i.e. like this (bash syntax):
+
+	export LEIN_HOME=/f/progs/clojure
+
+Remember to always set this variable afterwards before running leiningen commands. 
 - Point your classpath to where you installed clojure: 
-  export CLASSPATH=/f/progs/clojure/clojure-1.5.0/clojure-1.5.0
-- If you also want to keep the files / jars which leiningen retrieves
-  in a local, non-standard maven repository, you need to set
-  a variable in your $LEIN_HOME/profiles.clj file, like this:
-{:user  {;Location of local repository 
-         :local-repo "f://progs/clojure/.m2/"
-         ;Location of locally installed jars
-         ;(that can't be downloaded from public repo's)
-         :repositories  {"local" {:url "file://f/progs/clojure/.m2"
-                                  :releases {:checksum :ignore}}}}}
-- Then run 'lein self-install'. 
-- Afterwards, a 'lein repl' should give you a Clojure
-  read-eval-print-loop.
-- Put the following into $LEIN_HOME/profiles.clj
-{:user {:plugins [[lein-gentags "0.0.2-SNAPSHOT"]
-                  [lein-marginalia "0.7.0-20111019.122151-1"]
-                  [lein-pprint "1.1.1"]
-                  [lein-swank "1.4.5"]
-                  [org.clojure/tools.logging "0.2.3"]]}}
-This will give you the possibility to run 'lein swank' -- using
-lein-swank versio 1.4.5 is important, if you want to use it with
-clojure 1.5.0.
+
+	export CLASSPATH=/f/progs/clojure/clojure-1.5.0/clojure-1.5.0
+
+- If you also want to keep the files / jars which leiningen retrieves in a local, non-standard maven repository, you need to set a variable in your `$LEIN_HOME/profiles.clj` file, like this:
+
+     {:user  {;Location of local repository 
+             :local-repo "f://progs/clojure/.m2/"
+             ;Location of locally installed jars
+             ;(that can't be downloaded from public repo's)
+             :repositories  {"local" {:url "file://f/progs/clojure/.m2"
+                                      :releases {:checksum :ignore}}}}}
+
+- Then run `lein self-install`. 
+- Afterwards, a `lein repl` should give you a Clojure read-eval-print-loop.
+- To enable swank / slime (and some more goodies), put the following into `$LEIN_HOME/profiles.clj`:
+
+     {:user {:plugins [[lein-gentags "0.0.2-SNAPSHOT"]
+                      [lein-marginalia "0.7.0-20111019.122151-1"]
+                      [lein-pprint "1.1.1"]
+                      [lein-swank "1.4.5"]
+                      [org.clojure/tools.logging "0.2.3"]]}}
+
+This will give you the possibility to run `lein swank` and `M-x slime-connect` or run `M-x clojure-jack-in` from within Emacs -- using lein-swank version 1.4.5 is important, if you want to use it with clojure 1.5.0.
 
 
 
