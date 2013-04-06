@@ -51,10 +51,10 @@
                (<= (inc middle) len))
              (recur x (subvec vec (inc middle) len) {:acc (inc middle)})))) 
 
-(defn chop
+(defn chop-bin-rec
   "Recursive binary search of a vector"
   ([x vec]
-     (chop x vec 0))
+     (chop-bin-rec x vec 0))
   ([x vec acc]
      (let [len (count vec)
            middle (Math/round (Math/floor (/ len 2)))]
@@ -67,4 +67,19 @@
                (recur x (subvec vec 0 middle) acc)
              (and (> x (nth vec middle))
                   (<= (inc middle) len))
-               (recur x (subvec vec (inc middle) len) (inc middle))))))
+             (recur x (subvec vec (inc middle) len) (inc middle))))))
+
+(defn chop
+  "Iterative binary search of a vector"
+  [x vect]
+  (loop [start 0
+         end (count vect)]
+    (let [middle (Math/round (Math/floor (/ (+ start end) 2)))
+          mvalue (get vect middle -1)]
+      ;; (println :x x :start start :end end :middle middle :mvalue mvalue)
+      (cond (> start end) -1
+            (< x mvalue) (recur start (dec middle))
+            (> x mvalue) (recur (inc middle) end)
+            (= x mvalue) middle))))
+      
+            
