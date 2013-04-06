@@ -88,13 +88,11 @@ This is somewhat ugly because you have to use a map with recur, although otherwi
 The next version to think of is a non-recursive one. This, of course, leaves one a little with scratching your head, since the standard iterative solution to binary search uses start and end indices with re-occuring assignments of values until a match has been found or the start value exceeds the end. Now, without changing assignment to locals, this doesn't sound like to easy to simulate. However, using `loop` and `recur` this is actually very easy to simulate: loop provides the local variables for start and end values and we will recur to this target. This sounds a bit like cheating (i.e. like using a recursive version all over again) but actually we're only assigning new values to the 'start' and 'end' variables during each iteration and given that recur is for tail recursion only, I would assume that the implementation is actually just a simple jump and assignment under the hood. Interestingly enough, this one worked on first try, whereas I actually encountered some of the one-off errors that is mentioned in the original description of the kata with the recursive version. Re-reading 'Joy of clojure' along with doing this kata, I've stumbled upon the various ways to access vectors and treating a vector as an implicit map, which also noted the possibility to return a not-found value with `get` (as well as with `nth`). 
 
 (defn chop
-  "Iterative binary search of a vector"
   [x vect]
   (loop [start 0
          end (count vect)]
     (let [middle (Math/round (Math/floor (/ (+ start end) 2)))
           mvalue (get vect middle -1)]
-      ;; (println :x x :start start :end end :middle middle :mvalue mvalue)
       (cond (> start end) -1
             (< x mvalue) (recur start (dec middle))
             (> x mvalue) (recur (inc middle) end)
