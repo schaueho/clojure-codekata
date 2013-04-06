@@ -84,3 +84,18 @@ I actually also had another version using a default value for the accumulator pa
                  (recur x (subvec vec (inc middle) len) {:acc (inc middle)}))))
 
 This is somewhat ugly because you have to use a map with recur, although otherwise you could call the function directly with key value alone (i.e. `(chop 2 [1 2 3] :acc 0)`, due to the restrictions on arity matching with `recur` (cf. <http://clojure.org/special_forms?Special%20Forms--%28recur%20exprs*%29>).
+
+The next version to think of is a non-recursive one. This, of course, leaves one a little with scratching your head, since the standard iterative solution to binary search uses start and end indices with re-occuring assignments of values until a match has been found or the start value exceeds the end. Now, without changing assignment to locals, this doesn't sound like to easy to simulate. However, using `loop` and `recur` this is actually very easy to simulate: loop provides the local variables for start and end values and we will recur to this target. Interestingly enough, this one worked on first try, whereas I actually encountered some of the one-off errors that is mentioned in the original description of the kata with the recursive version. Re-reading 'Joy of clojure' along with doing this kata, I've stumbled upon the various ways to access vectors and treating a vector as an implicit map, which also noted the possibility to return a not-found value with `get` (as well as with `nth`). 
+
+(defn chop
+  "Iterative binary search of a vector"
+  [x vect]
+  (loop [start 0
+         end (count vect)]
+    (let [middle (Math/round (Math/floor (/ (+ start end) 2)))
+          mvalue (get vect middle -1)]
+      ;; (println :x x :start start :end end :middle middle :mvalue mvalue)
+      (cond (> start end) -1
+            (< x mvalue) (recur start (dec middle))
+            (> x mvalue) (recur (inc middle) end)
+            (= x mvalue) middle))))
