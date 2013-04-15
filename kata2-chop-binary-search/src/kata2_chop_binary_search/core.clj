@@ -18,6 +18,13 @@
   (let [result (keep-indexed #(when (= %2 x) %1) coll)]
     (or (first result) -1)))
 
+(defn chop-keep-indexed-for [x coll]
+  "Simple search somewhat iteratively"
+  (or (first (for [idx-val (keep-indexed #'vector coll)
+                   :when (= (second idx-val) x))]
+               (first idx-val)))
+      -1)
+
 (derive clojure.lang.Sequential ::collection)
 (defmulti chop-helper
   "Dispatch function returning the empty collection or the type of the collection"
