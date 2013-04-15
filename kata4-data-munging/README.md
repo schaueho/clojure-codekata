@@ -1,16 +1,8 @@
-# kata3-data-munging
+# kata4-data-munging
 
-A Clojure library designed to ... well, that part is up to you.
+Some clojure code to solve kata 4 "Data munging" from codekata.pragprog.com
 
-## Usage
-
-FIXME
-
-## License
-
-Copyright © 2013 FIXME
-
-Distributed under the Eclipse Public License, the same as Clojure.
+## Kata description, Copyright © 2013 cf. codekata.pragprog.com
 
 Martin Fowler gave me a hard time for KataTwo, complaining that it was
 yet another single-function, academic exercise. Which, or course, it
@@ -46,4 +38,12 @@ Kata Questions
     To what extent did the design decisions you made when writing the original programs make it easier or harder to factor out common code?
     Was the way you wrote the second program influenced by writing the first?
     Is factoring out as much common code as possible always a good thing? Did the readability of the programs suffer because of this requirement? How about the maintainability?
+
+
+
+## License
+
+Copyright for the code © 2013 Holger Schauer
+
+Distributed under the Eclipse Public License, the same as Clojure.
 
