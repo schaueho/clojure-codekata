@@ -100,7 +100,7 @@ The next version to think of is a non-recursive one. This, of course, leaves one
 
 This solution also reminded me that I really had not pushed that hard for an iterative solution to the linear search. The biggest stumbling block is keeping the index around, without actually updating anything. The idea I came up with was to somehow generate a list of indices and to iterate through the collection and this list in parallel, returning the index when I found it. I tried various approaches with `for` but did not succeed, since `for` nests the collection expressions. So the next idea was to zip up the collection and the list of indices. Reading the next chapter of [Joy of Clojure](http://joyofclojure.com/) gave me some hints as I stumbled across `iterate` and `zipmap` in the final example, which also solves a linear search task. I ended up not needing a map but generating a lazy sequence of value-index pairs (vectors) which can then be destructured for matching and returning the index, which is pretty close to the solution in Fogus and Houser's book, but is not as general.
 
-	(defn chop-iterate-for
+	(defn chop
        [x coll]
       (or (first (for [val-idx (map vector coll (iterate inc 0))
                       :let [[val idx] val-idx]
