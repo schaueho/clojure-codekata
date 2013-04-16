@@ -18,12 +18,14 @@
   (let [result (keep-indexed #(when (= %2 x) %1) coll)]
     (or (first result) -1)))
 
-(defn chop-keep-indexed-for [x coll]
-  "Simple search somewhat iteratively"
-  (or (first (for [idx-val (keep-indexed #'vector coll)
-                   :when (= (second idx-val) x))]
-               (first idx-val)))
-      -1)
+(defn chop-iterate-for 
+  [x coll]
+  "Simple search, as iteratively as possible"
+  (or (first (for [val-idx (map vector coll (iterate inc 0))
+                   :let [[val idx] val-idx]
+                   :when (= val x)]
+               idx))
+      -1))
 
 (derive clojure.lang.Sequential ::collection)
 (defmulti chop-helper
