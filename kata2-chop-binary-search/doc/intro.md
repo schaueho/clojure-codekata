@@ -87,13 +87,25 @@ This is somewhat ugly because you have to use a map with recur, although otherwi
 
 The next version to think of is a non-recursive one. This, of course, leaves one a little with scratching your head, since the standard iterative solution to binary search uses start and end indices with re-occuring assignments of values until a match has been found or the start value exceeds the end. Now, without changing assignment to locals, this doesn't sound like to easy to simulate. However, using `loop` and `recur` this is actually very easy to simulate: loop provides the local variables for start and end values and we will recur to this target. This sounds a bit like cheating (i.e. like using a recursive version all over again) but actually we're only assigning new values to the 'start' and 'end' variables during each iteration and given that recur is for tail recursion only, I would assume that the implementation is actually just a simple jump and assignment under the hood. Interestingly enough, this one worked on first try, whereas I actually encountered some of the one-off errors that is mentioned in the original description of the kata with the recursive version. Re-reading 'Joy of clojure' along with doing this kata, I've stumbled upon the various ways to access vectors and treating a vector as an implicit map, which also noted the possibility to return a not-found value with `get` (as well as with `nth`). 
 
-(defn chop
-  [x vect]
-  (loop [start 0
-         end (count vect)]
-    (let [middle (Math/round (Math/floor (/ (+ start end) 2)))
-          mvalue (get vect middle -1)]
-      (cond (> start end) -1
-            (< x mvalue) (recur start (dec middle))
-            (> x mvalue) (recur (inc middle) end)
-            (= x mvalue) middle))))
+	(defn chop
+	  [x vect]
+      (loop [start 0
+             end (count vect)]
+         (let [middle (Math/round (Math/floor (/ (+ start end) 2)))
+               mvalue (get vect middle -1)]
+           (cond (> start end) -1
+                 (< x mvalue) (recur start (dec middle))
+                 (> x mvalue) (recur (inc middle) end)
+                 (= x mvalue) middle))))
+
+This solution also reminded me that I really had not pushed that hard for an iterative solution to the linear search. The biggest stumbling block is keeping the index around, without actually updating anything. The idea I came up with was to somehow generate a list of indices and to iterate through the collection and this list in parallel, returning the index when I found it. I tried various approaches with `for` but did not succeed, since `for` nests the collection expressions. So the next idea was to zip up the collection and the list of indices. Reading the next chapter of [Joy of Clojure](http://joyofclojure.com/) gave me some hints as I stumbled across `iterate` and `zipmap` in the final example, which also solves a linear search task. I ended up not needing a map but generating a lazy sequence of value-index pairs (vectors) which can then be destructured for matching and returning the index, which is pretty close to the solution in Fogus and Houser's book, but is not as general.
+
+	(defn chop-iterate-for
+       [x coll]
+      (or (first (for [val-idx (map vector coll (iterate inc 0))
+                      :let [[val idx] val-idx]
+                      :when (= val x)]
+                   idx))
+          -1))
+
+Figuring this one out actually took me the longest, I believe and was eased a little by reading chapter 4 of 'Joy of Clojure' in the end. I learned quite a bit also about the lazy characteristics of some of the functions, in particular of `iterate`.
