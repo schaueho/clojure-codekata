@@ -10,7 +10,6 @@
 (defn first-word [string]
   "Returns first consecutive non-whitespace chars from string"
   (re-find #"\S+" string))
-
  
 (defn parse-line [line pattern]
   (let [parts pattern]
@@ -38,8 +37,7 @@
                                        
 (defn parse-day [line]
   "Parse a day from a line"
-  (parse-line day-pattern))
-
+  (parse-line line day-pattern))
       
 (defn find-lowest-temperature [weatherfile]
   "Return day in weatherfile with the smallest temperature spread"
