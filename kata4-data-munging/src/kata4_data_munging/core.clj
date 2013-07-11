@@ -1,14 +1,16 @@
 (ns kata4-data-munging.core)
 (require ['clojure.java.io :as 'io])
 
-(defn string-to-int [string]
+(defn string-to-int
   "Parses a consecutive set of numbers into an integer or return nil"
+  [string]
   (try
     (Integer/parseInt (re-find #"\d+" string))
     (catch Exception e nil)))
 
-(defn first-word [string]
+(defn first-word
   "Returns first consecutive non-whitespace chars from string"
+  [string]
   (re-find #"\S+" string))
  
 (defn parse-line [line pattern]
@@ -39,8 +41,9 @@
   "Parse a day from a line"
   (parse-line line day-pattern))
       
-(defn find-lowest-temperature [weatherfile]
+(defn find-lowest-temperature
   "Return day in weatherfile with the smallest temperature spread"
+   [weatherfile]
   (loop [lines (line-seq (io/reader weatherfile)) minday 0 minspread 0]
     (if (empty? lines)
       minday
@@ -51,3 +54,37 @@
                      (< curspread minspread)))
           (recur (next lines) curday curspread)
           (recur (next lines) minday minspread))))))  
+
+(defn abs 
+  "Returns the absolute value of x" 
+  [x]
+  (if (pos? x) 
+    x
+    (- x)))
+
+(def soccer-team-pattern
+  ; this pattern is not complete
+  (hash-map :pos [1 5 #(first-word %)]
+            :team [7 22 #(first-word %)]
+            :fval [43 45 #(string-to-int %)]
+            :aval [50 52 #(string-to-int %)]))
+
+(defn parse-soccer-team
+  "Parse a soccer-team from a line"
+  [line]
+  (parse-line line soccer-team-pattern))
+
+(defn find-minimum-goal-difference 
+  "Return team in soccerfile with the smallest difference in for and against goals"
+  [soccerfile]
+  (loop [lines (line-seq (io/reader soccerfile)) minteam 0 mindiff 0]
+    (if (empty? lines)
+      minteam
+      (let [{aval :aval fval :fval curteam :team} 
+                 (parse-soccer-team (first lines))            
+            curdiff (when (and aval fval) (abs (- fval aval)))]
+        (if (and curteam curdiff
+                 (or (= mindiff 0)
+                     (< curdiff mindiff)))
+          (recur (next lines) curteam curdiff)
+          (recur (next lines) minteam mindiff))))))

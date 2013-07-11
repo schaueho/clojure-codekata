@@ -24,3 +24,13 @@
 (deftest find-lowest-temperature-yields-result
   (let [weather-file "/home/schauer/programming/clojure/codekata/kata4-data-munging/weather.dat"]
     (is "14" (find-lowest-temperature weather-file))))
+
+(deftest parse-team-generates-data
+  (let [testline
+        "    1. Arsenal         38    26   9   3    79  -  36    87"]
+    (is {:aval 36, :pos "1", :team "Arsenal", :fval 79}
+        (parse-soccer-team testline))))
+
+(deftest team-with-smallest-diff-returns-result
+  (let [soccer-file "/home/schauer/programming/clojure/codekata/kata4-data-munging/football.dat"]
+    (is "Aston Villa" (find-minimum-goal-difference soccer-file))))
