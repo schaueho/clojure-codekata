@@ -1,6 +1,13 @@
 (ns kata4-data-munging.core)
 (require ['clojure.java.io :as 'io])
 
+(defn substring
+  "Returns substring from start to end from string or nil"
+  [string start end]
+  (try
+    (subs string start end)
+    (catch Exception e "")))
+
 (defn string-to-int
   "Parses a consecutive set of numbers into an integer or return nil"
   [string]
@@ -29,6 +36,14 @@
                          (hash-map key value)))
             ; silently skip any parsing errors
             nil))))))    
+
+(defn parse-line-map [line pattern]
+  (reduce #(conj %1 %2)
+          (concat [{}]
+                (map
+                 (fn [[key [start end parsefn]]]
+                   {key (parsefn (substring line start end))})
+                 (seq pattern)))))
 
 (def day-pattern
   ;this pattern is not complete and could be extended
@@ -88,3 +103,29 @@
                      (< curdiff mindiff)))
           (recur (next lines) curteam curdiff)
           (recur (next lines) minteam mindiff))))))
+
+(defn find-some-difference 
+  "Return some result from a data file which has some lowest difference"
+  [filename parse-pattern resultkey diffn]
+  (loop [lines (line-seq (io/reader filename))
+         result nil
+         mindiff 0]
+    (if (empty? lines)
+      result
+      (let [data-map (parse-line-map (first lines) parse-pattern)
+            curresult (get data-map resultkey)
+            curdiff (diffn data-map)]
+        (if (and curresult curdiff
+                 (or (= mindiff 0)
+                     (< curdiff mindiff)))
+          (recur (next lines) curresult curdiff)
+          (recur (next lines) result mindiff))))))
+
+(defn find-mingoal-diff-fusion
+  "Return team in soccerfile with the smallest goal difference, using the fusion fn."
+  [soccerfile]
+  (find-some-difference soccerfile soccer-team-pattern :team
+                        (fn [{aval :aval fval :fval curteam :team}]
+                          (when (and aval fval)
+                            (abs (- fval aval))))))
+
