@@ -108,4 +108,4 @@ This solution also reminded me that I really had not pushed that hard for an ite
                    idx))
           -1))
 
-Figuring this one out actually took me the longest, I believe and was eased a little by reading chapter 4 of 'Joy of Clojure' in the end. I learned quite a bit also about the lazy characteristics of some of the functions, in particular of `iterate`.
+Figuring this one out actually took me the longest and was eased a little by reading chapter 4 of 'Joy of Clojure' in the end. I learned quite a bit also about the lazy characteristics of some of the functions, in particular of `iterate`.

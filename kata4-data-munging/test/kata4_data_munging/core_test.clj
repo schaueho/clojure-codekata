@@ -34,3 +34,13 @@
 (deftest team-with-smallest-diff-returns-result
   (let [soccer-file "/home/schauer/programming/clojure/codekata/kata4-data-munging/football.dat"]
     (is "Aston Villa" (find-minimum-goal-difference soccer-file))))
+
+(deftest parse-line-map-day-pattern-returns-day
+  (let [testline
+        "   1  88    59    74          53.8       0.00 F       280  9.6 270  17  1.6  93 23 1004.5"]
+ (is {:AvT 74, :day "1", :MxT 88, :MnT 59} (parse-line-map testline day-pattern))))
+  
+
+(deftest team-with-smallest-diff-with-fusion-returns-result
+  (let [soccer-file "/home/schauer/programming/clojure/codekata/kata4-data-munging/football.dat"]
+    (is "Aston Villa" (find-mingoal-diff-fusion soccer-file))))
