@@ -95,8 +95,97 @@ This then allows us to put things together: we only need to compare the differen
                  (recur (next lines) minday minspread))))))     
 
 
+When I started working on the second task, solving the soccer issue, I did a simple copy and paste of the 'find-lowest-temperature', added a new pattern for extracting the data and made the small changes to adapt to the different fields. I also understand the comparison requirement to look at the absolute difference.
+This leads to the following functions:
+
+	(defn abs 
+	  "Returns the absolute value of x" 
+	  [x]
+	  (if (pos? x) 
+	    x
+	    (- x)))
+	
+	(def soccer-team-pattern
+	  ; this pattern is not complete
+	  (hash-map :pos [1 5 #(first-word %)]
+	            :team [7 22 #(first-word %)]
+	            :fval [43 45 #(string-to-int %)]
+	            :aval [50 52 #(string-to-int %)]))
+	
+	(defn parse-soccer-team
+	  "Parse a soccer-team from a line"
+	  [line]
+	  (parse-line line soccer-team-pattern))
+	
+	(defn find-minimum-goal-difference 
+	  "Return team in soccerfile with the smallest difference in for and against goals"
+	  [soccerfile]
+	  (loop [lines (line-seq (io/reader soccerfile)) minteam 0 mindiff 0]
+	    (if (empty? lines)
+	      minteam
+	      (let [{aval :aval fval :fval curteam :team} 
+	                 (parse-soccer-team (first lines))            
+	            curdiff (when (and aval fval) (abs (- fval aval)))]
+	        (if (and curteam curdiff
+	                 (or (= mindiff 0)
+	                     (< curdiff mindiff)))
+	          (recur (next lines) curteam curdiff)
+	          (recur (next lines) minteam mindiff))))))
+	
+This, of course, led straight to the insight that it should be simple to extract the slight differences and make them parameters to some 'find-*-difference' function. The following things are differently: the parsing pattern, the extraction function for the result value and the function used to compute the difference between values. If you would want to it would also be possible to make the comparison function configurable. 
+
+	(defn find-some-difference 
+	  "Return some result from a data file which has some lowest difference"
+	  [filename parse-pattern resultkey diffn]
+	  (loop [lines (line-seq (io/reader filename))
+	         result nil
+	         mindiff 0]
+	    (if (empty? lines)
+	      result
+	      (let [data-map (parse-line (first lines) parse-pattern)
+	            curresult (get data-map resultkey)
+	            curdiff (diffn data-map)]
+	        (if (and curresult curdiff
+	                 (or (= mindiff 0)
+	                     (< curdiff mindiff)))
+	          (recur (next lines) curresult curdiff)
+	          (recur (next lines) result mindiff))))))
+	
+	(defn find-mingoal-diff-fusion
+	  "Return team in soccerfile with the smallest goal difference, using the fusion fn."
+	  [soccerfile]
+	  (find-some-difference soccerfile soccer-team-pattern :team
+	                        (fn [{aval :aval fval :fval curteam :team}]
+	                          (when (and aval fval)
+	                            (abs (- fval aval))))))
 
 
+There there was another itch I wanted to scratch: the 'parse-line' function has some ugliness to it. For starters, it's handling possible exceptions from 'subs' directly. It's also checking eturn values for nil. Both cases are what Common Lisp would see as [conditions](http://www.nhplace.com/kent/Papers/Condition-Handling-2001.html) and for my taste it's rather unfortunate that Clojure opted for the more simple, although more traditional exception concept from Java. To remedy the uglyness of 'parse-line' we can simply replace the direct call to 'subs' with a small handcrafted call which manages any exceptions and also change the behavior of 'parse-line' to simply return nil for all unparsable elements. But there is more that makes 'parse-line' ugly: I dislike the recursive nature of the solution and the linear result handover in the 'let' declaration (well, this handover was intentional to not have a functional train-wreck of calls). I wanted to see whether I couldn't come up with a more elegant 'map/reduce' solution. Here you go:
+
+	(defn substring
+	  "Returns substring from start to end from string or nil"
+	  [string start end]
+	  (try
+	    (subs string start end)
+	    (catch Exception e "")))
+
+	(defn parse-line-map [line pattern]
+	  (reduce #(conj %1 %2)
+	          (concat [{}]
+	                (map
+	                 (fn [[key [start end parsefn]]]
+	                   {key (parsefn (substring line start end))})
+	                 (seq pattern)))))
+
+We're simply mapping over the entire pattern and use argument destructuring again to extract the relevant parts of it, but this time, due to the call to 'seq' a pattern part will be a sequence, not a map. Then we're always returning a map with key and the parsing result. This will give us a sequence of hashmaps with key and parsing results, which then gets reduced to a single map. In order to use 'reduce', you have to provide a function taking two arguments: the first will consume the intermediate result, the second will be the next value of the sequence to reduce. This is the reason why we have this ugly 'concat [()] ...' in front of the call to 'map': we need to provide the initial value for 'reduce' which in this case is an empty hashmap. An even more concise version replaces the call to 'reduce' with 'into' resulting in a version which looks pretty idiomatic to me and is also way easier to understand then the lengthy recursive version above.
+
+	(defn parse-line-map [line pattern]
+	  (into {}
+	        (map
+	         (fn [[key [start end parsefn]]]
+	           {key (parsefn (substring line start end))})
+	         (seq pattern))))
+		
 
     
 
