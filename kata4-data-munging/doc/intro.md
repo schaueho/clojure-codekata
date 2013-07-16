@@ -9,81 +9,90 @@ Having come to some idea of how the data file was structured, I came to the conc
 Clojures approach to file handling is a little bit surprising for somebody coming from Common Lisp, which provides three main concepts you need to grasp: filenames aka pathnames, files and streams. Typically, you open a file with 'with-open-file' which will guarantee that the file will be closed after you leave the block. Clojures 'with-open' macro abstracts this idea of safe file handling to the next level in that it's not restricted to files. However, 'with-open' does not simply work with a filename as an argument, you need to pass in a resource which follows the open/close protocoll which a simple filename string doesn't. That Clojure leverages the Java IO library for this is not surprising, but that it leaks this Java dependency to the users is. I assume this implies that '(with-open (clojure.java.io/reader "/some/filename.txt"))' will not work on ClojureCLR (apparently ['slurp'](http://clojuredocs.org/clojure_core/clojure.core/slurp) does). 'read-line' is also a false friend for a Common Lisp programmer, as it's can only be used for reading a line from the REPL but not for reading from some stream like in CL. While I appreciate the possibility to call Java methods from Clojure, I prefer using any abstractions that Clojure provides, so I went with 'line-seq' instead of calling '.read'. Finally, as Clojure does not allow for re-assignment, so we need a recursive approach with an accumulator to hold intermediate results while looping over the lines. So, the skeleton looks something like this in Clojure:
 
 
-    (defn find-lowest-temperature-skeleton
-      "Return day in weatherfile with the smallest temperature spread"
-         [weatherfile]
-	   (loop [lines (line-seq (io/reader weatherfile)) result]
-	       (if (empty? lines)
+	 (defn read-some-file
+	   "Skeleton for reading some file"
+	   [filename]
+	   (with-open [rdr (io/reader filename)]
+	      (loop [lines (line-seq rdr) result]
+	        (if (empty? lines)
 	             result
-		  ; todo: compare the result of parsing a line with the current 'best' 
+		  ; todo for the weather task: 
+		  ; compare the result of parsing a line with the current 'best' 
 		  ; i.e. minimum spread value so far and recur, possibly with different data
-                  (recur (next lines) result))))))
+                  (recur (next lines) result)))))))
 
 This is more or less the equivalent of Perl's '-n' command-line switch or 'while (<>) {...}' construct.
 
 The comparison mentioned in the code's comment is actually very easy and what needs to be put in place for the result is also obvious. But in order to do that we have to parse the lines first. Following up on the idea of how to parse a line, the relevant function is 'subs' which returns a substring from start to end. Now, we basically need to parse different substrings for the various data fields, quite often returning just an integer. Again, the simplest way of parsing a string to an integer is provided by a thin layer on top of a Java library. Neither  the 're-find' nor the exception handling would be necessary if we could guarantee that the data would always only consist of correct data, this way we just silently skip over invalid data.
 
-    (defn string-to-int
-      "Parses a consecutive set of numbers into an integer or return nil"
-      [string]
-      (try
-          (Integer/parseInt (re-find #"\d+" string))
-	  (catch Exception e nil)))
-
+	(defn string-to-int
+	  "Parses a consecutive set of numbers into an integer or return nil"
+	  [string]
+	  (try
+	    (Integer/parseInt (re-find #"\d+" string))
+	    (catch Exception e nil)))
+	
 'parse-line' is fairly straight-forward: the basic idea is that we have some specification of how a line is structured. This specification is a map of start and end positions plus parsing functions. So for the weather data, the pattern looks like this:
 
-     (def day-pattern
-       ;this pattern is not complete and could be extended
-       (hash-map :day [1 4 #(first-word %)]
-                 :MxT [5 8 #(string-to-int %)]
-                 :MnT [9 14 #(string-to-int %)]
-                 :AvT [15 20 #(string-to-int %)]))
-
+	(def day-pattern
+	  ;this pattern is not complete and could be extended
+	  (hash-map :day [1 4 #(first-word %)]
+	            :MxT [5 8 #(string-to-int %)]
+	            :MnT [9 14 #(string-to-int %)]
+	            :AvT [15 20 #(string-to-int %)]))
+	
 'first-word' is another small helper function which basically just retrieves the first continous non-whitespace characters of a string:
 
-     (defn first-word
-       "Returns first consecutive non-whitespace chars from string"
-       [string]
-       (re-find #"\S+" string))
+         (defn first-word
+           "Returns first consecutive non-whitespace chars from string"
+           [string]
+           (re-find #"\S+" string))
 
 'parse-line' than just loops over all parts of a pattern, extracts the substrings and calls the parsing function. It recursively 'conj'ures up a hash-map with the extracted data or returns 'nil' if some parsing error occurs.
 
-(defn parse-line [line pattern]
-    (loop [remkeys (keys pattern) linemap {}]
-      (if (empty? remkeys)
-        linemap
-        (let [key (first remkeys)
-              [start end parsefn] (get pattern key)
-              value (parsefn (try
-                               (subs line start end)
-                               (catch Exception e nil)))]
-          (if value
-            (recur (rest remkeys)
-                   (conj linemap
-                         (hash-map key value)))
-            ; silently skip any parsing errors
-            nil))))))
-
+	(defn parse-line [line pattern]
+	  "Parse a line with data in fixed positions using pattern.
+	Pattern should be a map consisting of a key for the data to return,
+	a start and end position and a parsing function for each data element.
+	
+	Returns a map with all extracted data or nil for unparsable lines."
+	  ; loop solution with accumulator for results
+	  (loop [remkeys (keys pattern) linemap {}]
+	    (if (empty? remkeys)
+	      linemap
+	      (let [key (first remkeys)
+	            [start end parsefn] (get pattern key)
+	            value (parsefn (try
+	                             (subs line start end)
+	                             (catch Exception e nil)))]
+	        (if value
+	          (recur (rest remkeys)
+	                 (conj linemap
+	                       (hash-map key value)))
+	          ; silently skip any parsing errors
+	          nil)))))
+	
 This then allows us to put things together: we only need to compare the difference between MxT and MnT of the current line with the previous smallest temperature spread. We'll use destructuring of the result of hte 'parse-day' results to retrieve the needed data, sprinkle in some sanity checks and are done.
 
-     (defn parse-day [line]
-       "Parse a day from a line"
-        (parse-line line day-pattern))
+        (defn parse-day
+          "Parse a day from a line"
+	  [line]
+          (parse-line line day-pattern))
 
-     (defn find-lowest-temperature
-       "Return day in weatherfile with the smallest temperature spread"
-       [weatherfile]
-      (loop [lines (line-seq (io/reader weatherfile)) minday 0 minspread 0]
-         (if (empty? lines)
-             minday
-	   (let [{mnt :MnT mxt :MxT curday :day} (parse-day (first lines))            
-                 curspread (when (and mnt mxt) (- mxt mnt))]
-              (if (and curday curspread
-                       (or (= minspread 0)
-                           (< curspread minspread)))
-                 (recur (next lines) curday curspread)
-                 (recur (next lines) minday minspread))))))     
-
+	(defn find-lowest-temperature
+	  "Return day in weatherfile with the smallest temperature spread"
+	  [weatherfile]
+	  (with-open [rdr (io/reader weatherfile)]
+	    (loop [lines (line-seq rdr) minday 0 minspread 0]
+	      (if (empty? lines)
+	        minday
+	        (let [{mnt :MnT mxt :MxT curday :day} (parse-day (first lines))            
+	              curspread (when (and mnt mxt) (- mxt mnt))]
+	          (if (and curday curspread
+	                   (or (= minspread 0)
+	                       (< curspread minspread)))
+	            (recur (next lines) curday curspread)
+	            (recur (next lines) minday minspread)))))))
 
 When I started working on the second task, solving the soccer issue, I did a simple copy and paste of the 'find-lowest-temperature', added a new pattern for extracting the data and made the small changes to adapt to the different fields. I also understand the comparison requirement to look at the absolute difference.
 This leads to the following functions:
@@ -91,9 +100,7 @@ This leads to the following functions:
 	(defn abs 
 	  "Returns the absolute value of x" 
 	  [x]
-	  (if (pos? x) 
-	    x
-	    (- x)))
+	  (if (pos? x) x (- x)))
 	
 	(def soccer-team-pattern
 	  ; this pattern is not complete
@@ -110,37 +117,39 @@ This leads to the following functions:
 	(defn find-minimum-goal-difference 
 	  "Return team in soccerfile with the smallest difference in for and against goals"
 	  [soccerfile]
-	  (loop [lines (line-seq (io/reader soccerfile)) minteam 0 mindiff 0]
-	    (if (empty? lines)
-	      minteam
-	      (let [{aval :aval fval :fval curteam :team} 
-	                 (parse-soccer-team (first lines))            
-	            curdiff (when (and aval fval) (abs (- fval aval)))]
-	        (if (and curteam curdiff
-	                 (or (= mindiff 0)
-	                     (< curdiff mindiff)))
-	          (recur (next lines) curteam curdiff)
-	          (recur (next lines) minteam mindiff))))))
-	
+	  (with-open [rdr (io/reader soccerfile)]
+	    (loop [lines (line-seq rdr) minteam 0 mindiff 0]
+	      (if (empty? lines)
+	        minteam
+	        (let [{aval :aval fval :fval curteam :team} 
+	              (parse-soccer-team (first lines))            
+	              curdiff (when (and aval fval) (abs (- fval aval)))]
+	          (if (and curteam curdiff
+	                   (or (= mindiff 0)
+	                       (< curdiff mindiff)))
+	            (recur (next lines) curteam curdiff)
+	            (recur (next lines) minteam mindiff)))))))
+		
 This, of course, led straight to the insight that it should be simple to extract the slight differences and make them parameters to some 'find-*-difference' function. The following things are differently: the parsing pattern, the extraction function for the result value and the function used to compute the difference between values. If you would want to it would also be possible to make the comparison function configurable. 
 
 	(defn find-some-difference 
 	  "Return some result from a data file which has some lowest difference"
 	  [filename parse-pattern resultkey diffn]
-	  (loop [lines (line-seq (io/reader filename))
-	         result nil
-	         mindiff 0]
-	    (if (empty? lines)
-	      result
-	      (let [data-map (parse-line (first lines) parse-pattern)
-	            curresult (get data-map resultkey)
-	            curdiff (diffn data-map)]
-	        (if (and curresult curdiff
-	                 (or (= mindiff 0)
-	                     (< curdiff mindiff)))
-	          (recur (next lines) curresult curdiff)
-	          (recur (next lines) result mindiff))))))
-	
+	  (with-open [rdr (io/reader filename)]
+	    (loop [lines (line-seq rdr)
+	           result nil
+	           mindiff 0]
+	      (if (empty? lines)
+	        result
+	        (let [data-map (parse-line-map (first lines) parse-pattern)
+	              curresult (get data-map resultkey)
+	              curdiff (diffn data-map)]
+	          (if (and curresult curdiff
+	                   (or (= mindiff 0)
+	                       (< curdiff mindiff)))
+	            (recur (next lines) curresult curdiff)
+	            (recur (next lines) result mindiff)))))))
+		
 	(defn find-mingoal-diff-fusion
 	  "Return team in soccerfile with the smallest goal difference, using the fusion fn."
 	  [soccerfile]
@@ -159,17 +168,28 @@ There there was another itch I wanted to scratch: the 'parse-line' function has 
 	    (subs string start end)
 	    (catch Exception e "")))
 
-	(defn parse-line-map [line pattern]
+	(defn parse-line-reduce [line pattern]
+	  "Parse a line with data in fixed positions using pattern.
+	Pattern should be a map consisting of a key for the data to return,
+	a start and end position and a parsing function for each data element.
+	
+	Returns a map with all extracted data which maybe empty."
+	  ; map-reduce version
 	  (reduce #(conj %1 %2)
 	          (concat [{}]
 	                (map
 	                 (fn [[key [start end parsefn]]]
 	                   {key (parsefn (substring line start end))})
 	                 (seq pattern)))))
-
+	
 We're simply mapping over the entire pattern and use argument destructuring again to extract the relevant parts of it, but this time, due to the call to 'seq' a pattern part will be a sequence, not a map. Then we're always returning a map with key and the parsing result. This will give us a sequence of hashmaps with key and parsing results, which then gets reduced to a single map. In order to use 'reduce', you have to provide a function taking two arguments: the first will consume the intermediate result, the second will be the next value of the sequence to reduce. This is the reason why we have this ugly 'concat [()] ...' in front of the call to 'map': we need to provide the initial value for 'reduce' which in this case is an empty hashmap. An even more concise version replaces the call to 'reduce' with 'into' resulting in a version which looks pretty idiomatic to me and is also way easier to understand then the lengthy recursive version above.
 
 	(defn parse-line-map [line pattern]
+	  "Parse a line with data in fixed positions using pattern.
+	Pattern should be a map consisting of a key for the data to return,
+	a start and end position and a parsing function for each data element.
+	
+	Returns a map with all extracted data which maybe empty."
 	  (into {}
 	        (map
 	         (fn [[key [start end parsefn]]]
