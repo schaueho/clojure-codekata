@@ -37,13 +37,20 @@
             ; silently skip any parsing errors
             nil))))))    
 
-(defn parse-line-map [line pattern]
+(defn parse-line-reduce [line pattern]
   (reduce #(conj %1 %2)
           (concat [{}]
                 (map
                  (fn [[key [start end parsefn]]]
                    {key (parsefn (substring line start end))})
                  (seq pattern)))))
+
+(defn parse-line-map [line pattern]
+  (into {}
+        (map
+         (fn [[key [start end parsefn]]]
+           {key (parsefn (substring line start end))})
+         (seq pattern))))
 
 (def day-pattern
   ;this pattern is not complete and could be extended
