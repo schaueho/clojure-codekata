@@ -2,7 +2,7 @@
 (require ['clojure.java.io :as 'io])
 
 (defn substring
-  "Returns substring from start to end from string or nil"
+  "Returns possibly empty substring from start to end from string"
   [string start end]
   (try
     (subs string start end)
@@ -21,23 +21,34 @@
   (re-find #"\S+" string))
  
 (defn parse-line [line pattern]
-  (let [parts pattern]
-    (loop [remkeys (keys parts) linemap {}]
-      (if (empty? remkeys)
-        linemap
-        (let [key (first remkeys)
-              [start end parsefn] (get parts key)
-              value (parsefn (try
-                               (subs line start end)
-                               (catch Exception e nil)))]
-          (if value
-            (recur (rest remkeys)
-                   (conj linemap
-                         (hash-map key value)))
-            ; silently skip any parsing errors
-            nil))))))    
+  "Parse a line with data in fixed positions using pattern.
+Pattern should be a map consisting of a key for the data to return,
+a start and end position and a parsing function for each data element.
+
+Returns a map with all extracted data or nil for unparsable lines."
+  ; loop solution with accumulator for results
+  (loop [remkeys (keys pattern) linemap {}]
+    (if (empty? remkeys)
+      linemap
+      (let [key (first remkeys)
+            [start end parsefn] (get pattern key)
+            value (parsefn (try
+                             (subs line start end)
+                             (catch Exception e nil)))]
+        (if value
+          (recur (rest remkeys)
+                 (conj linemap
+                       (hash-map key value)))
+          ; silently skip any parsing errors
+          nil)))))    
 
 (defn parse-line-reduce [line pattern]
+  "Parse a line with data in fixed positions using pattern.
+Pattern should be a map consisting of a key for the data to return,
+a start and end position and a parsing function for each data element.
+
+Returns a map with all extracted data which maybe empty."
+  ; map-reduce version
   (reduce #(conj %1 %2)
           (concat [{}]
                 (map
@@ -46,6 +57,11 @@
                  (seq pattern)))))
 
 (defn parse-line-map [line pattern]
+  "Parse a line with data in fixed positions using pattern.
+Pattern should be a map consisting of a key for the data to return,
+a start and end position and a parsing function for each data element.
+
+Returns a map with all extracted data which maybe empty."
   (into {}
         (map
          (fn [[key [start end parsefn]]]
@@ -80,9 +96,7 @@
 (defn abs 
   "Returns the absolute value of x" 
   [x]
-  (if (pos? x) 
-    x
-    (- x)))
+  (if (pos? x) x (- x)))
 
 (def soccer-team-pattern
   ; this pattern is not complete
