@@ -1,3 +1,9 @@
+*~
+pom.xml
+*jar
+/lib/
+/classes/
 classes/
 stale/
-*~
+/targets/
+.lein-deps-sum
