@@ -197,7 +197,7 @@ We are simply mapping over the entire pattern and use argument destructuring aga
 	         (seq pattern))))
 		
 
-    
+Summing up, what have we seen during this kata? Clojure's platform dependent approach to reading files, usage of regular expressions, destructuring (again), anonymous functions (again) and map/reduce. Overall not very exciting. I know it's not a fair comparison, but I would always opt for solving such tasks with Perl, especially if they are so trivial as in this case in which you can solve each task with a one-liner, basically. There is room for using more elaborate languages (e.g. Python, Ruby, Clojure) if parsing and processing become so elaborate that it makes sense to have more structure in the code. But for a task of the size of this kata, the amount of code required is usually not worth the effort.
 
     
 
