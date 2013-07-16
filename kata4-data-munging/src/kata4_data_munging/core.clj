@@ -81,17 +81,18 @@ Returns a map with all extracted data which maybe empty."
       
 (defn find-lowest-temperature
   "Return day in weatherfile with the smallest temperature spread"
-   [weatherfile]
-  (loop [lines (line-seq (io/reader weatherfile)) minday 0 minspread 0]
-    (if (empty? lines)
-      minday
-      (let [{mnt :MnT mxt :MxT curday :day} (parse-day (first lines))            
-            curspread (when (and mnt mxt) (- mxt mnt))]
-        (if (and curday curspread
-                 (or (= minspread 0)
-                     (< curspread minspread)))
-          (recur (next lines) curday curspread)
-          (recur (next lines) minday minspread))))))  
+  [weatherfile]
+  (with-open [rdr (io/reader weatherfile)]
+    (loop [lines (line-seq rdr) minday 0 minspread 0]
+      (if (empty? lines)
+        minday
+        (let [{mnt :MnT mxt :MxT curday :day} (parse-day (first lines))            
+              curspread (when (and mnt mxt) (- mxt mnt))]
+          (if (and curday curspread
+                   (or (= minspread 0)
+                       (< curspread minspread)))
+            (recur (next lines) curday curspread)
+            (recur (next lines) minday minspread)))))))  
 
 (defn abs 
   "Returns the absolute value of x" 
@@ -113,34 +114,36 @@ Returns a map with all extracted data which maybe empty."
 (defn find-minimum-goal-difference 
   "Return team in soccerfile with the smallest difference in for and against goals"
   [soccerfile]
-  (loop [lines (line-seq (io/reader soccerfile)) minteam 0 mindiff 0]
-    (if (empty? lines)
-      minteam
-      (let [{aval :aval fval :fval curteam :team} 
-                 (parse-soccer-team (first lines))            
-            curdiff (when (and aval fval) (abs (- fval aval)))]
-        (if (and curteam curdiff
-                 (or (= mindiff 0)
-                     (< curdiff mindiff)))
-          (recur (next lines) curteam curdiff)
-          (recur (next lines) minteam mindiff))))))
+  (with-open [rdr (io/reader soccerfile)]
+    (loop [lines (line-seq rdr) minteam 0 mindiff 0]
+      (if (empty? lines)
+        minteam
+        (let [{aval :aval fval :fval curteam :team} 
+              (parse-soccer-team (first lines))            
+              curdiff (when (and aval fval) (abs (- fval aval)))]
+          (if (and curteam curdiff
+                   (or (= mindiff 0)
+                       (< curdiff mindiff)))
+            (recur (next lines) curteam curdiff)
+            (recur (next lines) minteam mindiff)))))))
 
 (defn find-some-difference 
   "Return some result from a data file which has some lowest difference"
   [filename parse-pattern resultkey diffn]
-  (loop [lines (line-seq (io/reader filename))
-         result nil
-         mindiff 0]
-    (if (empty? lines)
-      result
-      (let [data-map (parse-line-map (first lines) parse-pattern)
-            curresult (get data-map resultkey)
-            curdiff (diffn data-map)]
-        (if (and curresult curdiff
-                 (or (= mindiff 0)
-                     (< curdiff mindiff)))
-          (recur (next lines) curresult curdiff)
-          (recur (next lines) result mindiff))))))
+  (with-open [rdr (io/reader filename)]
+    (loop [lines (line-seq rdr)
+           result nil
+           mindiff 0]
+      (if (empty? lines)
+        result
+        (let [data-map (parse-line-map (first lines) parse-pattern)
+              curresult (get data-map resultkey)
+              curdiff (diffn data-map)]
+          (if (and curresult curdiff
+                   (or (= mindiff 0)
+                       (< curdiff mindiff)))
+            (recur (next lines) curresult curdiff)
+            (recur (next lines) result mindiff)))))))
 
 (defn find-mingoal-diff-fusion
   "Return team in soccerfile with the smallest goal difference, using the fusion fn."
