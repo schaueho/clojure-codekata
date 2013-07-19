@@ -2,6 +2,14 @@
   (:use clojure.test
         kata4-data-munging.core))
 
+(def weather-file
+  "j:\\Diverses\\programming\\clojure\\codekata\\kata4-data-munging\\weather.dat")
+ ;  "/home/schauer/programming/clojure/codekata/kata4-data-munging/weather.dat")
+
+(def soccer-file
+  "j:\\Diverses\\programming\\clojure\\codekata\\kata4-data-munging\\football.dat")
+  ; "/home/schauer/programming/clojure/codekata/kata4-data-munging/football.dat")
+
 (deftest string-to-int-returns-number
   (is (= 1 (string-to-int "  1")))
   (is (= 99 (string-to-int "  99 abcde"))))
@@ -22,8 +30,7 @@
   (is (= nil (parse-day "This is some weird line"))))
 
 (deftest find-lowest-temperature-yields-result
-  (let [weather-file "/home/schauer/programming/clojure/codekata/kata4-data-munging/weather.dat"]
-    (is "14" (find-lowest-temperature weather-file))))
+  (is "14" (find-lowest-temperature weather-file)))
 
 (deftest parse-team-generates-data
   (let [testline
@@ -32,8 +39,7 @@
         (parse-soccer-team testline))))
 
 (deftest team-with-smallest-diff-returns-result
-  (let [soccer-file "/home/schauer/programming/clojure/codekata/kata4-data-munging/football.dat"]
-    (is "Aston Villa" (find-minimum-goal-difference soccer-file))))
+  (is "Aston Villa" (find-minimum-goal-difference soccer-file)))
 
 (deftest parse-line-map-day-pattern-returns-day
   (let [testline
@@ -42,5 +48,9 @@
   
 
 (deftest team-with-smallest-diff-with-fusion-returns-result
-  (let [soccer-file "/home/schauer/programming/clojure/codekata/kata4-data-munging/football.dat"]
-    (is "Aston Villa" (find-mingoal-diff-fusion soccer-file))))
+  (is "Aston Villa" (find-mingoal-diff-fusion soccer-file)))
+
+
+(deftest team-with-smallest-diff-map-returns-result
+  (is "Aston Villa" 
+      (find-mingoal-map soccer-file)))

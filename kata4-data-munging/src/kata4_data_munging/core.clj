@@ -1,5 +1,6 @@
 (ns kata4-data-munging.core)
 (require ['clojure.java.io :as 'io])
+(require ['clojure.string :as 'string])
 
 (defn substring
   "Returns possibly empty substring from start to end from string"
@@ -153,3 +154,22 @@ Returns a map with all extracted data which maybe empty."
                           (when (and aval fval)
                             (abs (- fval aval))))))
 
+
+(defn sort-diff-map
+  "Return some result from a data file which has some lowest difference"
+  [filename parse-pattern desiredkeys diffn]  
+  (sort-by diffn 
+           (filter #(every? (partial get %) desiredkeys)
+                   (map #(parse-line-map % parse-pattern)
+                        (string/split-lines (slurp filename))))))
+
+(defn find-mingoal-map
+  "Return team in soccerfile with the smallest goal difference, using the sort-map fn."
+  [soccer-file]
+  (get (take 1 
+             (sort-diff-map soccer-file soccer-team-pattern 
+                            [:team :fval :aval]
+                            (fn [{aval :aval fval :fval curteam :team}]
+                              (when (and aval fval)
+                                (abs (- fval aval))))))
+       :team))

@@ -197,6 +197,29 @@ We are simply mapping over the entire pattern and use argument destructuring aga
 	         (seq pattern))))
 		
 
+Of course, we can use a similar approach for the `find-*-difference` function. We could also take a slightly different approach and sort the parsing results and then treat the minimal value as the result. If we combine this with `slurp` the resulting code also becomes way more compact. In order to `filter` out only partially parseable lines, we need to supply a list of keys that the parsing result must have values for.
+
+	(defn sort-diff-map
+	  "Return some result from a data file which has some lowest difference"
+	  [filename parse-pattern desiredkeys diffn]  
+	  ; map-filter version
+	  (sort-by diffn 
+	           (filter #(every? (partial get %) desiredkeys)
+	                   (map #(parse-line-map % parse-pattern)
+	                        (string/split-lines (slurp filename))))))
+
+
+	(defn find-mingoal-map
+	  "Return team in soccerfile with the smallest goal difference, using the sort-map fn."
+	  [soccer-file]
+	  (get (take 1 
+	             (sort-diff-map soccer-file soccer-team-pattern 
+	                            [:team :fval :aval]
+	                            (fn [{aval :aval fval :fval curteam :team}]
+	                              (when (and aval fval)
+	                                (abs (- fval aval))))))
+	       :team))
+	
 Summing up, what have we seen during this kata? Clojure's platform dependent approach to reading files, usage of regular expressions, destructuring (again), anonymous functions (again) and map/reduce. Overall not very exciting. I know it's not a fair comparison, but I would always opt for solving such tasks with Perl, especially if they are so trivial as in this case in which you can solve each task with a one-liner, basically. There is room for using more elaborate languages (e.g. Python, Ruby, Clojure) if parsing and processing become so elaborate that it makes sense to have more structure in the code. But for a task of the size of this kata, the amount of code required is usually not worth the effort.
 
     
