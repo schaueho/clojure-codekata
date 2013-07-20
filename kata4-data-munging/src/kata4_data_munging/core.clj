@@ -154,7 +154,6 @@ Returns a map with all extracted data which maybe empty."
                           (when (and aval fval)
                             (abs (- fval aval))))))
 
-
 (defn sort-diff-map
   "Return some result from a data file which has some lowest difference"
   [filename parse-pattern desiredkeys diffn]  
