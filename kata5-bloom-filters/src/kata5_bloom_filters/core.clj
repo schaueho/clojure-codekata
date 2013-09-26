@@ -1,4 +1,5 @@
-(ns kata5-bloom-filters.core)
+(ns kata5-bloom-filters.core
+  (:require [clojure.string :as string]))
 
 ; cf. http://www.cse.yorku.ca/~oz/hash.html
 (defn sum-chars 
@@ -47,3 +48,19 @@
     (reduce (fn [^long curhash charval]
               ^long (bit-xor (unchecked-multiply curhash fnv-prime) charval))
             (cons 0 (map (comp unchecked-long int) charseq)))))
+
+(def ^:dynamic *hash-functions*
+  (list sum-chars djb-string-hash 
+        sdbm-string-hash fnv-hash))
+
+(defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
+  (reduce #(bit-set %1 %2) 
+          (conj (map #(% charseq) hashfns)
+                bloom)))
+
+(defn bloom-contains? [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
+  (every? #(bit-test bloom %) (map #(% charseq) hashfns)))
+
+(defn build-bloom [wordfile & {:keys [hashfns] :or {hashfns *hash-functions*}}]
+  (reduce #(bloom-add %1 %2 :hashfns hashfns)
+          (cons 0 (string/split-lines (slurp wordfile)))))
