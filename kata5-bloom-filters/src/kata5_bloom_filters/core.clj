@@ -1,5 +1,7 @@
 (ns kata5-bloom-filters.core
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [clojure.math.numeric-tower :as math])
+  (:import (java.util BitSet)))
 
 ; cf. http://www.cse.yorku.ca/~oz/hash.html
 (defn sum-chars 
@@ -12,6 +14,7 @@
   "Use djb's method for hashing a string"
   [charseq]
   (reduce (fn [curhash charval]
+            ; (println (string/join " " [curhash charval]))
             ^long (unchecked-add 
                    (unchecked-add (bit-shift-left curhash 5) curhash) 
                    charval))
@@ -50,17 +53,27 @@
             (cons 0 (map (comp unchecked-long int) charseq)))))
 
 (def ^:dynamic *hash-functions*
-  (list sum-chars djb-string-hash 
-        sdbm-string-hash fnv-hash))
+  (list sum-chars ;djb-string-hash 
+        sdbm-hash-recur fnv-hash))
 
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
-  (reduce #(bit-set %1 %2) 
-          (conj (map #(% charseq) hashfns)
-                bloom)))
+  (let [size (.size bloom)]
+    (doseq [hashval (map #(% charseq) hashfns)]
+      (.set bloom (Math/abs (mod hashval size)) true))
+    bloom))
 
 (defn bloom-contains? [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
-  (every? #(bit-test bloom %) (map #(% charseq) hashfns)))
+  (let [size (.size bloom)]
+    (every? #(= (.get bloom (Math/abs (mod % size))) true) 
+            (map #(% charseq) hashfns))))
 
-(defn build-bloom [wordfile & {:keys [hashfns] :or {hashfns *hash-functions*}}]
-  (reduce #(bloom-add %1 %2 :hashfns hashfns)
-          (cons 0 (string/split-lines (slurp wordfile)))))
+(defn build-bloom [wordfile & {:keys [bloom-filter size hashfns]
+                               :or {size 1024
+                                    hashfns *hash-functions*}}]
+  (let [bloom (or bloom-filter (BitSet. size))]
+        (reduce #(bloom-add %1 %2 :hashfns hashfns)
+                (cons bloom (string/split-lines (slurp wordfile))))
+    bloom))
+
+(defn optimal-size [capacity fault-rate]
+  (math/ceil (* (Math/log (/ 1 fault-rate)) (Math/log (math/expt Math/E 1)) capacity)))

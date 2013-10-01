@@ -1,6 +1,7 @@
 (ns kata5-bloom-filters.core-test
   (:use clojure.test
-        kata5-bloom-filters.core))
+        kata5-bloom-filters.core)
+  (:import (java.util BitSet)))
 
 (deftest sum-of-chars-returns-valid-result
   (testing "Testing hash function sum-chars"
@@ -18,10 +19,13 @@
   (testing "Testing hash function fnv-hash"
     (is (= 6157838686567520599 (fnv-hash "foobar")))))
 
-(deftest bloom-add-returns-an-integer
-  (testing "Simple value computation test for a adding a value to a bloom filter"
-    (is (= 4755801206511640576 (bloom-add 0 "foobar")))))
-
 (deftest bloom-added-values-are-contained
   (testing "An added value is contained in the resulting bloom filter"
-    (is (bloom-contains? (bloom-add 0 "foobar") "foobar"))))
+    (is (bloom-contains? (bloom-add (BitSet. 100000) "foobar") "foobar"))))
+
+(deftest bloom-of-dict-words-finds-data
+  (testing "A fully build bloom filter finds the data that got added"
+    (let [bloom (build-bloom "/usr/share/dict/words" :size 921999)]
+      (is (bloom-contains? bloom "ABM's"))
+      (is (bloom-contains? bloom "Anthony"))
+      (is (not (bloom-contains? bloom "foo"))))))
