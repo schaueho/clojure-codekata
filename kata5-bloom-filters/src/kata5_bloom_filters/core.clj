@@ -56,16 +56,20 @@
   (list sum-chars ;djb-string-hash 
         sdbm-hash-recur fnv-hash))
 
+(defn hash-string [charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
+  (map #(% charseq) hashfns))
+
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (let [size (.size bloom)]
-    (doseq [hashval (map #(% charseq) hashfns)]
+    (doseq [hashval (hash-string charseq :hashfns hashfns)]
       (.set bloom (Math/abs (mod hashval size)) true))
     bloom))
 
 (defn bloom-contains? [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
-  (let [size (.size bloom)]
+  (let [size (.size bloom)
+        hashvals (hash-string charseq :hashfns hashfns)]
     (every? #(= (.get bloom (Math/abs (mod % size))) true) 
-            (map #(% charseq) hashfns))))
+            hashvals)))
 
 (defn build-bloom [wordfile & {:keys [bloom-filter size hashfns]
                                :or {size 1024
