@@ -1,8 +1,8 @@
 (ns kata5-bloom-filters.core
   (:require [clojure.string :as string]
             [clojure.math.numeric-tower :as math])
-  (:import (java.util BitSet)))
-
+  (:import (java.util BitSet)
+           (java.util.concurrent Executors)))
 
 ; cf. http://www.cse.yorku.ca/~oz/hash.html
 (defn sum-chars 
@@ -70,7 +70,8 @@
   (fn [bloomfilter position]
     (type bloomfilter)))
 (defmethod bloom-bit-get BitSet [bitset position]
-    (.get bitset position))
+  (locking bitset
+    (.get bitset position)))
 (defmethod bloom-bit-get Long [bitset position]
   (bit-test bitset position))
 
@@ -78,7 +79,8 @@
   (fn [bloomfilter position value]
     (type bloomfilter)))
 (defmethod bloom-bit-set BitSet [bitset position value]
-    (.set bitset position value))
+  (locking bitset
+    (.set bitset position value)))
 (defmethod bloom-bit-set Long [bitset position value]
   (cond (and value (bit-test bitset position))
         bitset
@@ -109,6 +111,13 @@
         (reduce #(bloom-add %1 %2 :hashfns hashfns)
                 (cons bloom (string/split-lines (slurp wordfile))))
     bloom))
+
+(def *pool* (Executors/newFixedThreadPool
+             (+ 2 (.availableProcessors (Runtime/getRuntime)))))
+(defn dothreads! [f & {thread-count :threads exec-count :times
+                       :or {thread-count 1 exec-count 1}}]
+  (dotimes [t thread-count]
+    (.submit *pool* #(dotimes [_ exec-count] (f)))))
 
 (defn optimal-size [capacity fault-rate]
   (math/ceil (* (Math/log (/ 1 fault-rate)) (Math/log (math/expt Math/E 1)) capacity)))
