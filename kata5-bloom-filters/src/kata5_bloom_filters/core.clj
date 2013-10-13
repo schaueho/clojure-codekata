@@ -3,6 +3,7 @@
             [clojure.math.numeric-tower :as math])
   (:import (java.util BitSet)))
 
+
 ; cf. http://www.cse.yorku.ca/~oz/hash.html
 (defn sum-chars 
   "Sum up the chars of a given string"
@@ -59,16 +60,46 @@
 (defn hash-string [charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (map #(% charseq) hashfns))
 
+(defmulti bloom-size type)
+(defmethod bloom-size BitSet [bitset]
+  (.size bitset))
+(defmethod bloom-size Long [bitset]
+  64)
+
+(defmulti bloom-bit-get
+  (fn [bloomfilter position]
+    (type bloomfilter)))
+(defmethod bloom-bit-get BitSet [bitset position]
+    (.get bitset position))
+(defmethod bloom-bit-get Long [bitset position]
+  (bit-test bitset position))
+
+(defmulti bloom-bit-set
+  (fn [bloomfilter position value]
+    (type bloomfilter)))
+(defmethod bloom-bit-set BitSet [bitset position value]
+    (.set bitset position value))
+(defmethod bloom-bit-set Long [bitset position value]
+  (cond (and value (bit-test bitset position))
+        bitset
+        (and value (not (bit-test bitset position)))
+        (bit-flip bitset position)
+        (and (not value) (not (bit-test bitset position)))
+        bitset
+        (and (not value) (bit-test bitset position))
+         (bit-flip bitset position)))
+
+
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
-  (let [size (.size bloom)]
+  (let [size (bloom-size bloom)]
     (doseq [hashval (hash-string charseq :hashfns hashfns)]
-      (.set bloom (Math/abs (mod hashval size)) true))
+      (bloom-bit-set bloom (Math/abs (mod hashval size)) true))
     bloom))
 
 (defn bloom-contains? [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
-  (let [size (.size bloom)
+  (let [size (bloom-size bloom)
         hashvals (hash-string charseq :hashfns hashfns)]
-    (every? #(= (.get bloom (Math/abs (mod % size))) true) 
+    (every? #(= (bloom-bit-get bloom (Math/abs (mod % size))) true)
             hashvals)))
 
 (defn build-bloom [wordfile & {:keys [bloom-filter size hashfns]
