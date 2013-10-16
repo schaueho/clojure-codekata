@@ -60,37 +60,39 @@
 (defn hash-string [charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (map #(% charseq) hashfns))
 
-(defmulti bloom-size type)
-(defmethod bloom-size BitSet [bitset]
-  (.size bitset))
-(defmethod bloom-size Long [bitset]
-  64)
+(defprotocol BloomFilterImpl
+  (bloom-size [filter])
+  (bloom-bit-get [filter position])
+  (bloom-bit-set [filter position value]))
 
-(defmulti bloom-bit-get
-  (fn [bloomfilter position]
-    (type bloomfilter)))
-(defmethod bloom-bit-get BitSet [bitset position]
-  (locking bitset
-    (.get bitset position)))
+(extend-type Long
+  BloomFilterImpl
+  (bloom-size [filter]
+    64)
+  (bloom-bit-get [filter position]
+    (bit-test filter position))
+  (bloom-bit-set [filter position value]
+    (cond (and value (bit-test filter position))
+          filter
+          (and value (not (bit-test filter position)))
+          (bit-flip filter position)
+          (and (not value) (not (bit-test filter position)))
+          filter
+          (and (not value) (bit-test filter position))
+          (bit-flip filter position))))
 
-(defmethod bloom-bit-get Long [bitset position]
-  (bit-test bitset position))
-
-(defmulti bloom-bit-set
-  (fn [bloomfilter position value]
-    (type bloomfilter)))
-(defmethod bloom-bit-set BitSet [bitset position value]
-  (locking bitset
-    (.set bitset position value)))
-(defmethod bloom-bit-set Long [bitset position value]
-  (cond (and value (bit-test bitset position))
-        bitset
-        (and value (not (bit-test bitset position)))
-        (bit-flip bitset position)
-        (and (not value) (not (bit-test bitset position)))
-        bitset
-        (and (not value) (bit-test bitset position))
-         (bit-flip bitset position)))
+(extend-type BitSet
+  BloomFilterImpl
+  (bloom-size [filter]
+    (.size filter))
+  (bloom-bit-get [filter position]
+    (locking filter
+      (.get filter position)))
+  (bloom-bit-set [filter position value]
+    (if (< position (bloom-size filter))
+      (locking filter
+        (.set filter position value))
+      (throw (IllegalArgumentException. "position outside of bloom filter size")))))
 
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (let [size (bloom-size bloom)]
