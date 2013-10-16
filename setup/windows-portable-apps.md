@@ -107,7 +107,7 @@ If you don't want to set all these variables all the time, you can put them eith
 	     exit 1
 	fi
 	
-To figure out how to get rid of the hardcoded drive letter in bash is left as an exercise to the reader.
+To figure out how to get rid of the hardcoded drive letter in bash is left as an exercise to the reader (hint: `pwd` and `cut` are your friends).
 
 If you also want to keep the files / jars which leiningen retrieves in a local, non-standard maven repository, you need to set a variable in your `$LEIN_HOME/profiles.clj` file, like this:
 
