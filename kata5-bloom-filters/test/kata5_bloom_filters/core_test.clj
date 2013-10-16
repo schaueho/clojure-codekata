@@ -1,7 +1,8 @@
 (ns kata5-bloom-filters.core-test
   (:use clojure.test
         kata5-bloom-filters.core)
-  (:import (java.util BitSet)))
+  (:import (java.util BitSet)
+           (java.util.concurrent Executors)))
 
 (deftest sum-of-chars-returns-valid-result
   (testing "Testing hash function sum-chars"
@@ -34,3 +35,24 @@
       (is (bloom-contains? bloom "aback"))
       (is (bloom-contains? bloom "abandons"))
       (is (not (bloom-contains? bloom "foo"))))))
+
+(defn make-random-string []
+  (let [numchars (rand-nth (range 1 8))
+        characters (map char (take numchars (repeatedly #(rand-nth (range 97 122)))))]
+    (apply str characters)))
+
+(defn bloom-add-random-string [bloom-filter]
+  (let [newstring (make-random-string)]
+    (println newstring)
+    (bloom-add bloom-filter newstring)))
+
+; Fogus etal. dothreads helper
+(def ^:dynamic *pool*
+  (Executors/newFixedThreadPool
+   (+ 2 (.availableProcessors (Runtime/getRuntime)))))
+
+(defn dothreads! [f & {thread-count :threads exec-count :times
+                       :or {thread-count 1 exec-count 1}}]
+  (dotimes [t thread-count]
+    (.submit *pool* #(dotimes [_ exec-count] (f)))))
+

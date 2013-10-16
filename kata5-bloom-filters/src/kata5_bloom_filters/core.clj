@@ -1,8 +1,8 @@
 (ns kata5-bloom-filters.core
   (:require [clojure.string :as string]
             [clojure.math.numeric-tower :as math])
-  (:import (java.util BitSet)
-           (java.util.concurrent Executors)))
+  (:import (java.util BitSet)))
+
 
 ; cf. http://www.cse.yorku.ca/~oz/hash.html
 (defn sum-chars 
@@ -72,6 +72,7 @@
 (defmethod bloom-bit-get BitSet [bitset position]
   (locking bitset
     (.get bitset position)))
+
 (defmethod bloom-bit-get Long [bitset position]
   (bit-test bitset position))
 
@@ -90,7 +91,6 @@
         bitset
         (and (not value) (bit-test bitset position))
          (bit-flip bitset position)))
-
 
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (let [size (bloom-size bloom)]
@@ -112,12 +112,8 @@
                 (cons bloom (string/split-lines (slurp wordfile))))
     bloom))
 
-(def *pool* (Executors/newFixedThreadPool
-             (+ 2 (.availableProcessors (Runtime/getRuntime)))))
-(defn dothreads! [f & {thread-count :threads exec-count :times
-                       :or {thread-count 1 exec-count 1}}]
-  (dotimes [t thread-count]
-    (.submit *pool* #(dotimes [_ exec-count] (f)))))
 
 (defn optimal-size [capacity fault-rate]
   (math/ceil (* (Math/log (/ 1 fault-rate)) (Math/log (math/expt Math/E 1)) capacity)))
+
+"let flowers bloom!"
