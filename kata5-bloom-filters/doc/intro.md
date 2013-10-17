@@ -115,26 +115,85 @@ We basically just exchanged the `bit-set`/`bit-test` functions with the respecti
 Now, of course, we would like to fix the problem that this code is not thread-safe. As is made pretty clear in Fogus etal. book "Joy of Clojure", Clojure's reference types are of no use here:
 > "Wrapping a mutable object in a Clojure reference type provides absolutely no guarantees for safe concurrent modification. Doing this will at best explode immediately or, worse, provide inaccurate results."
 
-The advice Fogus etal. offer is to use the `locking` macro. If we combine the above idea of using an internal protocol, we can at least apply it where it is necessary, i.e. around the calls to `.get`/`.set`:
+The advice Fogus etal. offer is to use the `locking` macro. If we combine the above idea of using an internal protocol, we can at least apply it where it is necessary, i.e. around the calls to `.get`/`.set`. 
 
-     (defmulti bloom-size type)
-     (defmethod bloom-size BitSet [bitset]
-       (.size bitset))
+	(defprotocol BloomFilterImpl
+		(bloom-size [filter])
+		(bloom-bit-get [filter position])
+		(bloom-bit-set [filter position value]))
 
-     (defmulti bloom-bit-get 
-       (fn [bloomfilter position]
-          (type bloomfilter)))
-     (defmethod bloom-bit-get BitSet [bitset position]
-       (locking bitset
-          (.get bitset position)))
+	(extend-type BitSet
+		BloomFilterImpl
+		(bloom-size [filter]
+			(.size filter))
+		(bloom-bit-get [filter position]
+			(locking filter
+				(.get filter position)))
+	    (bloom-bit-set [filter position value]
+			(if (< position (bloom-size filter))
+				(locking filter
+					(.set filter position value))
+				(throw (IllegalArgumentException. "position outside of bloom filter size")))))
 
-     (defmulti bloom-bit-set 
-       (fn [bloomfilter position value]
-          (type bloomfilter)))
-      (defmethod bloom-bit-set BitSet [bitset position value]
-       (locking bitset 
-          (.set bitset position value)))
-	
+
+If you wonder why the protocol does not have the `add` or `contains?` functions, this is because these operations would be part of some dictionary protocol or some such (although it is somewhat debatable if dictionaries should guarantee the absence of false-positives).
+
+Let's dig some more into the concurrency issue: it's surprisingly hard to come up with a scenario where the mutability of the `BitSet` could be problematic. For one, we are always only adding entries by manipulating a single bit and do that in an atomic fashion that does not rely on the previous value of the BitSet in any way. For another, we don't have any delete operation, so we can't possibly run into the situation where some bit / some dictionary entry goes missing -- assuming, of course, that all modifications to the bloom filter happen through the functions we supplied only and not by some other means directly on the BitSet outside our control. The only scenario that comes to my mind would be where one wants to keep the state of the bloom filter fixed in one thread, i.e. for some time we want to be able to deny having seen some value / word (which another thread just tried to sneak in while we were not looking). I can't imagine a real world usage for this scenario, but that probably says more about my creativity than about anything else.
+
+Let's briefly discuss the options to account for this scenario: the `locking` scenario above is not enough as the locking occurs as part of the getting/setting operations -- there is no way in which one thread could prohibit modifications to the Bloom filter during a specified amount of time with this. Of course, as locks nest you could add locking outside the calls to add new elements to the bloom filter. The other option would be to use one of Clojure's reference types. But as discussed above, these are not useful for protecting mutable data structures, so we would need to go back to using one of Clojures persistent data structures. So, let's briefly step aside and compare the speed of Java arrays generated via Clojure and using Clojure vectors, both on booleans:
+
+    (defn make-random-boolean-array [size]
+      (boolean-array
+       (take size (repeatedly #(rand-nth [true false])))))
+
+    (defn make-random-boolean-vector [size]
+      (into [] (take size (repeatedly #(rand-nth [true false])))))
+
+    (defn print-flipped-boolean-array [ba]
+      (let [size (count ba)]
+        (loop [indx 0
+               result ""]
+          (if (= indx size)
+            result
+            (do
+              (aset ba indx (not (aget ba indx)))
+              (recur (inc indx)
+                     (string/join
+                      [result
+                       (if (aget ba indx) 1 0)])))))))
+
+    (defn print-flipped-boolean-vector [bv]
+      (let [size (count bv)]
+        (loop [indx 0
+               vec bv
+               result ""]
+          (if (= indx size)
+            result
+            (let [newvec (assoc vec indx (not (get vec indx)))]
+              (recur (inc indx)
+                     newvec
+                     (string/join
+                      [result
+                       (if (get newvec indx) 1 0)])))))))
+
+	kata5-bloom-filters.core> (time (do (print-boolean-array (make-random-boolean-array 10000)) true))
+	"Elapsed time: 587.247368 msecs"
+	true
+	kata5-bloom-filters.core> (time (do (print-boolean-array (make-random-boolean-array 10000)) true))
+	"Elapsed time: 592.598888 msecs"
+	true
+	kata5-bloom-filters.core> (time (do (print-boolean-vector (make-random-boolean-vector 10000)) true))
+	"Elapsed time: 76.657272 msecs"
+	true
+	kata5-bloom-filters.core> (time (do (print-boolean-vector (make-random-boolean-vector 10000)) true))
+	"Elapsed time: 69.666769 msecs"
+	true
+	kata5-bloom-filters.core> (time (do (print-boolean-vector (make-random-boolean-vector 10000)) true))
+	"Elapsed time: 71.897087 msecs"
+	true
+
+Now if I run this a reasonable number of times, it appears that for simple element access the boolean vector is outperforming the boolean array, even if I'm basically doing building up a new partial copy of the vector all the time / for all elements. That was a welcome surprise for me. 
+
 
 
 
