@@ -192,7 +192,28 @@ Let's briefly discuss the options to account for this scenario: the `locking` sc
 	"Elapsed time: 71.897087 msecs"
 	true
 
-Now if I run this a reasonable number of times, it appears that for simple element access the boolean vector is outperforming the boolean array, even if I'm basically doing building up a new partial copy of the vector all the time / for all elements. That was a welcome surprise for me. 
+Now if I run this a reasonable number of times, it appears that for simple element access the boolean vector is outperforming the boolean array, even if I'm basically doing building up a new partial copy of the vector all the time / for all elements. That was a welcome surprise for me. So, using a vector of booleans would be a viable next possibility. The road ahead, however, is hindered by the fact that Clojure does not derive a complex type for vectors, not even if you especially declare the vector to be of a certain type. You'll always end up with a vector or `Vec`:
+
+	kata5-bloom-filters.core> (into (vector-of :boolean) [true false])
+	[true false]
+	kata5-bloom-filters.core> (type *1)
+	clojure.core.Vec
+
+This is problematic as we don't want to just `extend-type` the general type. The way out of it is the use of `reify` which is just like `extend-type` for objects (that's actually quite misleading, if you look at the documentation of `reify`, go check yourself -- I would also recommend reading up about this in "Joy of Clojure"). 
+
+    (defn make-bloom-vector [size]
+      (let [bloom-vect
+            (ref (into (vector-of :boolean)
+                       (take size (repeatedly #(identity false)))))]
+        (reify BloomFilterImpl
+          (bloom-size [_]
+            size)
+          (bloom-bit-get [_ position]
+            (nth @bloom-vect position))
+          (bloom-bit-set [_ position value]
+            (alter bloom-vect assoc position value)))))
+
+As you can see, I'm using a closure to store the vector of booleans in a `ref`. We then `deref` the vector on get and `alter` it on set. This is especially set up such that any transaction handling (i.e. `dosync`) occurs outside of the implementation details, to account for the scenario discussed above.
 
 
 
