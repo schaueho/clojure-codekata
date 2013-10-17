@@ -1,4 +1,5 @@
 (ns kata5-bloom-filters.core-test
+  (:require [clojure.string :as string])
   (:use clojure.test
         kata5-bloom-filters.core)
   (:import (java.util BitSet)
@@ -46,6 +47,7 @@
     (println newstring)
     (bloom-add bloom-filter newstring)))
 
+
 ; Fogus etal. dothreads helper
 (def ^:dynamic *pool*
   (Executors/newFixedThreadPool
@@ -56,3 +58,59 @@
   (dotimes [t thread-count]
     (.submit *pool* #(dotimes [_ exec-count] (f)))))
 
+(defn make-random-boolean-array [size]
+  (boolean-array
+   (take size (repeatedly #(rand-nth [true false])))))
+
+(defn make-random-boolean-vector [size]
+  (into (vector-of :boolean) (take size (repeatedly #(rand-nth [true false])))))
+
+(defn print-boolean-vector-seq [bv]
+  (loop [truthvals bv
+         result ""]
+    (if (empty? truthvals)
+      result
+      (recur (rest truthvals) (string/join [result (if (first truthvals) 1 0)])))))
+
+(defn print-boolean-array [ba]
+  (let [size (count ba)]
+    (loop [indx 0
+           result ""]
+    (if (= indx size)
+      result
+      (recur (inc indx) (string/join [result (if (aget ba indx) 1 0)]))))))
+
+(defn print-boolean-vector [bv]
+  (let [size (count bv)]
+    (loop [indx 0
+           result ""]
+    (if (= indx size)
+      result
+      (recur (inc indx) (string/join [result (if (get bv indx) 1 0)]))))))
+
+(defn print-flipped-boolean-array [ba]
+  (let [size (count ba)]
+    (loop [indx 0
+           result ""]
+    (if (= indx size)
+      result
+      (do
+        (aset ba indx (not (aget ba indx)))
+        (recur (inc indx)
+               (string/join
+                [result
+                 (if (aget ba indx) 1 0)])))))))
+
+(defn print-flipped-boolean-vector [bv]
+  (let [size (count bv)]
+    (loop [indx 0
+           vec bv
+           result ""]
+    (if (= indx size)
+      result
+      (let [newvec (assoc vec indx (not (get vec indx)))]
+      (recur (inc indx)
+             newvec
+             (string/join
+              [result
+               (if (get newvec indx) 1 0)])))))))
