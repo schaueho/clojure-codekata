@@ -94,6 +94,18 @@
         (.set filter position value))
       (throw (IllegalArgumentException. "position outside of bloom filter size")))))
 
+(defn make-bloom-vector [size]
+  (let [bloom-vect
+        (ref (into (vector-of :boolean)
+                   (take size (repeatedly #(identity false)))))]
+    (reify BloomFilterImpl
+      (bloom-size [_]
+        size)
+      (bloom-bit-get [_ position]
+        (nth @bloom-vect position))
+      (bloom-bit-set [_ position value]
+        (alter bloom-vect assoc position value)))))
+
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (let [size (bloom-size bloom)]
     (doseq [hashval (hash-string charseq :hashfns hashfns)]
@@ -114,6 +126,13 @@
                 (cons bloom (string/split-lines (slurp wordfile))))
     bloom))
 
+(defn build-bloom-synced [wordfile & {:keys [bloom-filter size hashfns]
+                               :or {size 1024
+                                    hashfns *hash-functions*}}]
+  (let [bloom (or bloom-filter (BitSet. size))]
+        (reduce #(dosync (bloom-add %1 %2 :hashfns hashfns))
+                (cons bloom (string/split-lines (slurp wordfile))))
+    bloom))
 
 (defn optimal-size [capacity fault-rate]
   (math/ceil (* (Math/log (/ 1 fault-rate)) (Math/log (math/expt Math/E 1)) capacity)))

@@ -47,6 +47,23 @@
     (println newstring)
     (bloom-add bloom-filter newstring)))
 
+(deftest bloom-bit-vector-follows-protocol
+  (let [bloom (make-bloom-vector 10)]
+    (is (bloom-size bloom) 10)
+    (dosync
+     (bloom-bit-set bloom 3 true)
+     (bloom-bit-set bloom 4 true))
+    (is (= (bloom-bit-get bloom 3) true))
+    (is (= (bloom-bit-get bloom 4) true))
+    (is (= (bloom-bit-get bloom 7) false))))
+
+(deftest synced-bloom-of-dict-words-finds-data
+  (testing "A fully build bloom filter finds the data that got added"
+    (let [bloom (build-bloom-synced "wordlist.txt" :bloom-filter (make-bloom-vector 313751))]
+      (is (bloom-contains? bloom "aback"))
+      (is (bloom-contains? bloom "abandons"))
+      (is (not (bloom-contains? bloom "foo"))))))
+
 
 ; Fogus etal. dothreads helper
 (def ^:dynamic *pool*
