@@ -213,11 +213,6 @@ This is problematic as we don't want to just `extend-type` the general type. The
           (bloom-bit-set [_ position value]
             (alter bloom-vect assoc position value)))))
 
-As you can see, I'm using a closure to store the vector of booleans in a `ref`. We then `deref` the vector on get and `alter` it on set. This is especially set up such that any transaction handling (i.e. `dosync`) occurs outside of the implementation details, to account for the scenario discussed above.
+As you can see, I'm using a closure to store the vector of booleans in a `ref`. We then `deref` the vector on get and `alter` it on set. This is especially set up such that any transaction handling (i.e. `dosync`) occurs outside of the implementation details, to account for the scenario discussed above. Of course, whether refs are really best suited for handling any concurrency situation is likely to depend ultimately on the application specific context or concurrency requiremts. 
 
-
-
-
-
-
-
+I will leave it at that. This time, we have seen quite some more features that are pretty much unique to Clojure: explicit protocols, reification of instances and references, i.e. using Clojure's STM. There was also quite a bit of discussion of some consequences of Clojure's decision to leverage the JVM, some bad (overflows), some nice (plugging in a readibly available data stucture). Overall, this kata was quite an interesting exercise.
