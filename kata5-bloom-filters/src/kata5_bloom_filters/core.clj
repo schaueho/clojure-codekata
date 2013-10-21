@@ -106,6 +106,23 @@
       (bloom-bit-set [_ position value]
         (alter bloom-vect assoc position value)))))
 
+(defn make-bloom-vol [size]
+  (let [bloom-vect
+        (ref (into (vector-of :long)
+                   (take (int (Math/ceil (Math/abs (float (/ size 64)))))
+                         (repeatedly #(identity 0)))))]
+    (reify BloomFilterImpl
+      (bloom-size [_]
+        size)
+      (bloom-bit-get [_ position]
+         (bit-test (nth @bloom-vect (int (Math/floor (Math/abs (float (/ position 64))))))
+                   (Math/abs (mod position 64))))
+      (bloom-bit-set [_ position value]
+        (let [oldval (nth @bloom-vect (int (Math/floor (Math/abs (float (/ position 64))))))]
+          (alter bloom-vect assoc (int (Math/floor (Math/abs (float (/ position 64)))))
+                 (bloom-bit-set oldval (Math/abs (mod position 64)) 
+                                (if value 0 1))))))))
+
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (let [size (bloom-size bloom)]
     (doseq [hashval (hash-string charseq :hashfns hashfns)]
