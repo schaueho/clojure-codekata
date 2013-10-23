@@ -1,6 +1,6 @@
 (ns kata5-bloom-filters.core
-  (:require [clojure.string :as string]
-            [clojure.math.numeric-tower :as math])
+  (:require [clojure.math.numeric-tower :as math :refer (abs ceil floor)]
+            [clojure.string :as string])
   (:import (java.util BitSet)))
 
 
@@ -14,12 +14,12 @@
 (defn djb-string-hash
   "Use djb's method for hashing a string"
   [charseq]
-  (reduce (fn [curhash charval]
+  (reduce (fn [^long curhash ^long charval]
             ; (println (string/join " " [curhash charval]))
             ^long (unchecked-add 
                    (unchecked-add (bit-shift-left curhash 5) curhash) 
                    charval))
-          (cons 5381 (map int charseq))))
+          5381 (map int charseq)))
 
 (defn- comp-hash-val
   [curhash charval]
@@ -53,8 +53,9 @@
               ^long (bit-xor (unchecked-multiply curhash fnv-prime) charval))
             (cons 0 (map (comp unchecked-long int) charseq)))))
 
+
 (def ^:dynamic *hash-functions*
-  (list sum-chars ;djb-string-hash 
+  (list sum-chars djb-string-hash 
         sdbm-hash-recur fnv-hash))
 
 (defn hash-string [charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
@@ -109,30 +110,34 @@
 (defn make-bloom-vol [size]
   (let [bloom-vect
         (ref (into (vector-of :long)
-                   (take (int (Math/ceil (Math/abs (float (/ size 64)))))
-                         (repeatedly #(identity 0)))))]
+                   (take (int (ceil (abs (float (/ size 64)))))
+                         (repeatedly #(identity 0)))))
+        vec-pos (fn [position] 
+                  (int (floor (abs (float (/ position 64))))))
+        bit-pos (fn [position] 
+                  (abs (mod position 64)))]
     (reify BloomFilterImpl
       (bloom-size [_]
         size)
       (bloom-bit-get [_ position]
-         (bit-test (nth @bloom-vect (int (Math/floor (Math/abs (float (/ position 64))))))
-                   (Math/abs (mod position 64))))
+         (bit-test (nth @bloom-vect (vec-pos position))
+                   (bit-pos position)))
       (bloom-bit-set [_ position value]
-        (let [oldval (nth @bloom-vect (int (Math/floor (Math/abs (float (/ position 64))))))]
-          (alter bloom-vect assoc (int (Math/floor (Math/abs (float (/ position 64)))))
-                 (bloom-bit-set oldval (Math/abs (mod position 64)) 
+        (let [oldval (nth @bloom-vect (vec-pos position))]
+          (alter bloom-vect assoc (vec-pos position)
+                 (bloom-bit-set oldval (bit-pos position) 
                                 (if value 0 1))))))))
 
 (defn bloom-add [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (let [size (bloom-size bloom)]
     (doseq [hashval (hash-string charseq :hashfns hashfns)]
-      (bloom-bit-set bloom (Math/abs (mod hashval size)) true))
+      (bloom-bit-set bloom (abs (mod hashval size)) true))
     bloom))
 
 (defn bloom-contains? [bloom charseq & {:keys [hashfns] :or {hashfns *hash-functions*}}]
   (let [size (bloom-size bloom)
         hashvals (hash-string charseq :hashfns hashfns)]
-    (every? #(= (bloom-bit-get bloom (Math/abs (mod % size))) true)
+    (every? #(= (bloom-bit-get bloom (abs (mod % size))) true)
             hashvals)))
 
 (defn build-bloom [wordfile & {:keys [bloom-filter size hashfns]
