@@ -5,22 +5,6 @@
   (:import (java.util BitSet)
            (java.util.concurrent Executors)))
 
-(deftest sum-of-chars-returns-valid-result
-  (testing "Testing hash function sum-chars"
-    (is (= 633 (sum-chars "foobar")))))
-
-(deftest djb-string-hash-returns-valid-result
-  (testing "Testing hash function djb-string-match"
-    (is (= 6953516687550 (djb-string-hash "foobar")))))
-
-(deftest sdbm-string-hash-returns-valid-result
-  (testing "Testing hash function sdbm-string-hash"
-    (is (= (sdbm-hash-recur "foobar") (sdbm-string-hash "foobar")))))
-
-(deftest fnvhash-hash-returns-valid-result
-  (testing "Testing hash function fnv-hash"
-    (is (= 6157838686567520599 (fnv-hash "foobar")))))
-
 (deftest optimal-size-calculates-value
   (testing "Optimal size calculation for bloom filter"
     (is (= 313751.0 (optimal-size 45420 1/1000)))))
