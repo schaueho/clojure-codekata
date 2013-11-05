@@ -4,12 +4,12 @@
 (defn remove-blanks [word]
   (str/replace word " " ""))
 
-(defn anagram-set [word1 word2]
+(defn anagram-set? [word1 word2]
   (let [w1 (remove-blanks word1)
         w2 (remove-blanks word2)] 
     (= (set w1) (set w2))))
 
-(defn anagram-phm [word1 word2]
+(defn anagram-phm? [word1 word2]
   (let [add-char-to-charmap
         (fn [charmap char]
           (assoc charmap char

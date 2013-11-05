@@ -1,19 +1,18 @@
 (ns kata6-anagrams.core-test
   (:use clojure.test
+        midje.sweet
         kata6-anagrams.core))
 
-(deftest setimpl-succeeds-for-real-anagrams
-  (testing "anagram-set"
-    (is (= true (anagram-set "the law" "wealth")))))
+(facts "Testing the set implementation for checking anagrams"
+       (fact "Set anagram can find anagrams"
+             (anagram-set? "the law" "wealth") => true)
+       
+       (fact "Set anagram is too simplistic"
+             (anagram-set? "the lalalaw" "wealth") => true))
 
-(deftest setimpl-succeeds-for-nonreal-anagrams
-  (testing "anagram-set is too simplistic"
-    (is (= true (anagram-set "the lalalaw" "wealth")))))
+(facts "Testing the set implementation for checking anagrams"
+       (fact "anagram-hash-map implementation"
+             (anagram-phm? "the law" "wealth") => true)
 
-(deftest hashmap-succeeds-for-real-anagrams
-  (testing "anagram-hash-map implementation"
-    (is (= true (anagram-phm "the law" "wealth")))))
-
-(deftest hashmap-fails-for-nonreal-anagrams
-  (testing "anagram-hash-map is too simplistic"
-    (is (= false (anagram-phm "the lalalaw" "wealth")))))
+       (fact "anagram-hash-map fails on non-anagrams"
+             (anagram-phm? "the lalalaw" "wealth") => false))
