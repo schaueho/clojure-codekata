@@ -76,7 +76,7 @@
           current-perm (reverse-tail swapped (inc k))]
       current-perm)))
 
-(defn generate-permutations [squence]
+(defn generate-permutations-eager [squence]
   ;; generate permutations in lexicographic order, following Naranya Pandita, 14th century
   ;; cf. https://en.wikipedia.org/wiki/Permutation
   (let [start-perm (sort squence)]
@@ -87,6 +87,15 @@
         result
         (recur (next-permutation permutation)
                (concat result (list permutation)))))))
+
+(defn- gen-perms [squenze]
+  (lazy-seq
+   (when-let [permutation (next-permutation squenze)]
+     (cons permutation (gen-perms permutation)))))
+
+(defn generate-permutations [squence]
+  (let [start-perm (sort squence)]
+        (cons start-perm (gen-perms start-perm))))
 
 (defn generate-anagrams [word]
   "Generate all anagrams of word"

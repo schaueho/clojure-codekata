@@ -165,4 +165,15 @@ Now, when you run this code with the test data given in the original kata:
              (find-anagrams "rots" words) => '("sort")
              (find-anagrams "thelaw" words) => '("wealth")))
 
-You will run into a StackOverflowException for "boaster".
+I ran into a StackOverflowException for "boaster" though. Looking at the code, it's immediately obvious that there the only possible cause for this can be in `generate-permutations` which generates the result eagerly. So, let's change that to a lazy variant.
+
+	(defn- gen-perms [squenze]
+		(lazy-seq
+			(when-let [permutation (next-permutation squenze)]
+				(cons permutation (gen-perms permutation)))))
+
+	(defn generate-permutations [squence]
+		(let [start-perm (sort squence)]
+			(cons start-perm (gen-perms start-perm))))
+
+I use an external helper here because we need to add the start permutation to the final result up-front and that doesn't lend itself to a self-recursive function. 
