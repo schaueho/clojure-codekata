@@ -1,6 +1,6 @@
 # Introduction to kata6-anagrams
 
-[Kata 6 FIX LINK](http://codekata.pragprog.com/2007/01/kata_six_anagram.html) is concerned with anagrams. An [anagram FIX LINK](https://en.wikipedia.org/anagrams) is a word that consists of characters which, when combined in a different order, form a different word. Now, when I started out with this kata, I was sitting on a train without internet connection, so I just went ahead with what I remembered from a quick glance over the kata description I had done the week before. So I thought that all that needed to be solved was to determine whether two words were anagrams of each other. My initial idea how to solve this is to generate the sets of the characters of both words and compare those:
+[Kata 6](http://codekata.pragprog.com/2007/01/kata_six_anagra.html) is concerned with anagrams. An [anagram](https://en.wikipedia.org/wiki/Anagram) is a word that consists of characters which, when combined in a different order, form a different word. Now, when I started out with this kata, I was sitting on a train without internet connection, so I just went ahead with what I remembered from a quick glance over the kata description I had done the week before. So I thought that all that needed to be solved was to determine whether two words were anagrams of each other. My initial idea how to solve this is to generate the sets of the characters of both words and compare those:
 
 	(defn remove-blanks [word]
          (str/replace word " " ""))
@@ -10,7 +10,7 @@
 	           w2 (remove-blanks word2)] 
 		   (= (set w1) (set w2))))
 
-This time, I opted for using [midje FIX LINK]() for running the tests, in particular due to the possibility to run tests continually via [lein-midje FIX LINK](). Midje takes a slightly different approach / syntax to writing tests, adding the notion of _facts_ that are then verified. I.e. tests with midje look like this:
+This time, I opted for using [midje](https://github.com/marick/Midje) for running the tests, in particular due to the possibility to run tests continually via [lein-midje](https://github.com/marick/lein-midje). Midje takes a slightly different approach / syntax to writing tests, adding the notion of _facts_ that are then verified. I.e. tests with midje look like this:
 
 	(facts "Testing the set implementation for checking anagrams"
        (fact "Set anagram can find anagrams"
@@ -19,7 +19,7 @@ This time, I opted for using [midje FIX LINK]() for running the tests, in partic
        (fact "Set anagram is too simplistic"
              (anagram-set? "the lalalaw" "wealth") => true))
 
-You can already see from the latter fact what is wrong with the initial solution: it's too simplistic with regard to handling the number of occurences of some character. (Some might say, the introduction of `remove-blanks` also is too complicated, but I wanted to handle [Anne Clark's "The law is an anagram of wealth" FIX LINK]().
+You can already see from the latter fact what is wrong with the initial solution: it's too simplistic with regard to handling the number of occurences of some character. (Some might say, the introduction of `remove-blanks` also is too complicated, but I wanted to handle [Anne Clark's "The law is an anagram of wealth"](http://www.lastfm.de/music/Anne+Clark/THE+LAW+Is+An+Anagram+of+WEALTH).
 
 When I finally had some more time to read the kata description more carefully, I recognized that the task actually is to find all anagrams of a given word, checking back against a given wordlist. So that means that the kata consists of two tasks: generate all possible combinations for a given character sequence and check in this wordlist whether some candidate character sequence amounts to a known word. Now, if you take a step back, it's easy to see that anagrams are nothing else than permutations of the elements of a given (character) sequence, with the additional restriction that all such permutations must be (known) words again. So, we end up with a skeleton which looks like this:
 
@@ -41,7 +41,7 @@ When I finally had some more time to read the kata description more carefully, I
                     (concat result (list (first candidates)))
                     result))))))
 
-Which now, of course leaves us with the task to implement a permutation algorithm. I must admit I had a pretty hard time to come up with something on my own without resorting to looking at other people's code. Given that the task of code katas is not primarily to invent algorithms on the fly, but to practice coding, I finally read the [wikipedia paragraph on computing permutations in lexicographic order](https://en.wikipedia.org/wiki/Permutation), which has a blue print of an algorithm which is attributed to Naranya Pandita, who invented it in the 14th century already. I took a very verbatim and top-down approach this time and ended up with this as the next piece of code:
+Which now, of course leaves us with the task to implement a permutation algorithm. I must admit I had a pretty hard time to come up with something on my own without resorting to looking at other people's code. Given that the task of code katas is not primarily to invent algorithms on the fly, but to practice coding, I finally read the [wikipedia paragraph on computing permutations in lexicographic order](https://en.wikipedia.org/wiki/Permutation#Generation_in_lexicographic_order), which has a blue print of an algorithm which is attributed to Naranya Pandita, who invented it in the 14th century already. I took a very verbatim and top-down approach this time and ended up with this as the next piece of code:
 
 	(defn next-permutation [squence]
 	   (when-let [k (find-largest-index-with-bigger-successor squence)]
