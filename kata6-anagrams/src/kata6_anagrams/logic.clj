@@ -27,3 +27,36 @@
            (conso h l nl)
            (insert x t l))]))
 
+(defn permutation 
+  ([xs ys] (permutation xs ys ys))
+  ([xs ys res]
+     (conde 
+      [(and (empty xs)
+            (empty ys)
+            (== res nil))]
+      [(fresh [_ x xs1 ys1 bound]
+              (conso x xs1 xs)
+              (insert x ys ys1)
+              (permutation xs1 ys bound)
+              (conso _ bound res))])))
+
+(defne inserto [L X L*]
+  ([L X (X . L)])
+  ([(H . T) X (H . L1)]
+     (inserto T X L1)))
+
+(defne permuto [I O]
+  ([nil nil])
+  ([() ()])
+  ([(X . Xs) Ys1] 
+     (fresh [Ys]
+            (permuto Xs Ys)
+            (inserto Ys X Ys1))))
+
+(defne permuto3 [I O L*]
+  ([nil nil nil])
+  ([() () ()])
+  ([(X . Xs) Ys1 (_ . Bound)]
+     (fresh [Ys]
+            (permuto3 Xs Ys Bound)
+            (inserto Ys X Ys1))))
