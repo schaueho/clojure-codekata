@@ -29,16 +29,16 @@
 
 (defn permutation 
   ([xs ys] (permutation xs ys ys))
-  ([xs ys res]
+  ([xl yl res]
      (conde 
-      [(and (empty xs)
-            (empty ys)
-            (== res nil))]
-      [(fresh [_ x xs1 ys1 bound]
-              (conso x xs1 xs)
-              (insert x ys ys1)
-              (permutation xs1 ys bound)
-              (conso _ bound res))])))
+      [(== xl '()) (== yl '()) (== res '())]
+      [(== xl nil) (== yl nil) (== res nil)]
+      [(fresh [_ x xs ys bound]
+              (conso x xs xl)
+              (permutation xs ys bound)
+              (conso _ bound res)
+              (insert x ys yl)
+              )])))
 
 (defne inserto [L X L*]
   ([L X (X . L)])

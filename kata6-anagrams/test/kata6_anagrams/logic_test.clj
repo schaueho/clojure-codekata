@@ -53,4 +53,17 @@
        (fact "A more complex permutation"
              (run* [q] (permuto3 '(1 2) q q)) => '((1 2) (2 1)))
        (fact "An even more complex permutation"
-             (run* [q] (permuto3 '(1 2 3) q q)) => '((1 2 3) (1 3 2) (2 1 3) (2 3 1) (3 1 2) (3 2 1))))
+             (run* [q] (permuto3 '(1 2 3) q q)) => '((1 2 3) (1 3 2) (2 1 3) (2 3 1) (3 1 2) (3 2 1)))
+       (fact "A simple charlist?"
+             (run* [q] (permuto3 (seq "al") q q)) => '((\a \l) (\l \a))))
+
+(facts "Checking permutation"
+       (fact "An empty permutation"
+             (run* [q] (permutation nil nil)) => '(_0)
+             (run* [q] (permutation '() ())) => '(_0))
+       (fact "A simple permutation"
+             (run* [q] (permutation '(1) q)) => '((1)))
+       (fact "A more complex permutation"
+             (run* [q] (permutation '(1 2) q q)) => '((1 2) (2 1)))
+       (fact "An even more complex permutation"
+             (run* [q] (permutation '(1 2 3) q)) => '((1 2 3) (1 3 2) (2 1 3) (2 3 1) (3 1 2) (3 2 1))))
