@@ -8,9 +8,8 @@
 
 (facts "Checking insert"
        (fact "Simple insert"
-             (run* [q] (insert 1 [2] q)) => '((1 2))
-          ;   (run* [q] (insert \a "b" q)) => '((a . b))
-             (run* [q] (insert 1 [2 3] q)) => '((1 2 3)))
+             (run* [q] (insert 1 [2] q)) => '((1 2) (2 1))
+             (run* [q] (insert 1 [2 3] q)) => '((1 2 3) (2 1 3) (2 3 1)))
        (fact "We can retrieve the inserted data"
              (run* [q] (insert q [2] '(1 2))) => '(1))
        (fact "We can retrieve the list data, too"
@@ -19,7 +18,6 @@
 (facts "Checking inserto"
        (fact "Simple insert"
              (run* [q] (inserto [2] 1 q)) => '((1 2) (2 1))
-          ;   (run* [q] (inserto \a "b" q)) => '((a . b))
              (run* [q] (inserto [2 3] 1 q)) => '((1 2 3) (2 1 3) (2 3 1)))
        (fact "We can retrieve the inserted data"
              (run* [q] (inserto [2] q '(1 2))) => '(1))
@@ -60,7 +58,7 @@
        (fact "A more complex permutation"
              (run* [q] (permutation '(1 2) q q)) => '((1 2) (2 1)))
        (fact "An even more complex permutation"
-             (run* [q] (permutation '(1 2 3) q)) => '((1 2 3) (1 3 2) (2 1 3) (2 3 1) (3 1 2) (3 2 1))))
+             (run* [q] (permutation '(1 2 3) q)) => '((1 2 3) (2 1 3) (2 3 1) (1 3 2) (3 1 2) (3 2 1))))
 
 ;(trace-vars kata6-anagrams.logic/permuto3)
 (facts "Testing the anagram implementation"

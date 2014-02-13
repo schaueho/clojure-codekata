@@ -18,12 +18,12 @@
 (defn insert [x l nl]
   (conde
    [(conso x l nl)]
-   [(fresh [h t]
+   [(fresh [h t l1]
            (conso h t l)
-           (conso h l nl)
-           (insert x t l))]))
+           (conso h l1 nl)
+           (insert x t l1))]))
 
-(defne inserto [L X L*]
+(defne inserto [L X NL]
   ([L X (X . L)])
   ([(H . T) X (H . L1)]
      (inserto T X L1)))
@@ -38,7 +38,7 @@
               (conso x xs xl)
               (permutation xs ys bound)
               (conso _ bound res)
-              (inserto ys x yl)
+              (insert x ys yl)
               )])))
 
 (defne permuto [I O]
