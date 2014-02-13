@@ -57,3 +57,22 @@
             (permuto3 Xs Ys Bound)
             (inserto Ys X Ys1))))
 
+(defn generate-anagrams [word]
+  "Generate all anagrams of word"
+  (map (partial apply str) 
+       (run* [anagrams] 
+             (permuto3 (seq word) anagrams anagrams))))
+
+(defn find-anagrams [word words]
+  "Finds all anagrams of word in (the sequence of) words"
+  (let [anagrams (generate-anagrams word)
+        wordset (set words)]
+    (loop [candidates anagrams
+           result []]
+      (if (empty? candidates)
+        result
+        (recur (rest candidates)
+               (if (and (not (= (first candidates) word))
+                        (contains? wordset (first candidates)))
+                 (concat result (list (first candidates)))
+                 result))))))

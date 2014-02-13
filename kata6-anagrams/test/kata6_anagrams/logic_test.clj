@@ -61,3 +61,16 @@
              (run* [q] (permutation '(1 2) q q)) => '((1 2) (2 1)))
        (fact "An even more complex permutation"
              (run* [q] (permutation '(1 2 3) q)) => '((1 2 3) (1 3 2) (2 1 3) (2 3 1) (3 1 2) (3 2 1))))
+
+;(trace-vars kata6-anagrams.logic/permuto3)
+(facts "Testing the anagram implementation"
+       (fact "Generating all anagrams"
+             (generate-anagrams "ftw") => '("ftw" "fwt" "tfw" "twf" "wft" "wtf"))
+       (let [words (split-lines (slurp "wordlist.txt"))]
+             (find-anagrams "kinship" words) => '("pinkish" "pinkish")
+             (find-anagrams "enlist" words) => '("listen" "inlets" "silent")
+             (find-anagrams "boaster" words) => '("boaters" "borates")
+             (find-anagrams "sinks" words) => '("skins" "skins")
+             (find-anagrams "knits" words) => '("stink")
+             (find-anagrams "rots" words) => '("sort")
+             (find-anagrams "thelaw" words) => '("wealth")))
