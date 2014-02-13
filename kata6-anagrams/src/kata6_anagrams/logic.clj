@@ -3,10 +3,6 @@
   (:use [clojure.core.logic])
   (:require [clojure.string :as str]))
 
-(defn anagram? [word1 word2]
-  (run* [queryvar]
-        (== queryvar word1)
-        (== queryvar word2)))
 
 ;;; classical prolog permutation solution as from R.A. O'Keefe's "Craft of Prolog"
 ;;; permutation(Xs, Ys) :-
