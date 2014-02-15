@@ -177,3 +177,47 @@ I ran into a StackOverflowException for "boaster" though. Looking at the code, i
 			(cons start-perm (gen-perms start-perm))))
 
 I use an external helper here because we need to add the start permutation to the final result up-front and that doesn't lend itself to a self-recursive function. 
+Anyway, this concludes the first solution using a rather traditional algorithm.
+
+For the next solution, I intended to use something else. I had the chance to hear David Nolen talk about [core.logic](https://github.com/clojure/core.logic) which reminded me a lot of the old days in which I was using [Prolog](https://en.wikipedia.org/wiki/Prolog) for computational linguistics and logic programming. In particular I was thinking of a permutation implementation in Prolog described in Richard O'Keefe's [Craft of Prolog](https://mitpress.mit.edu/books/craft-prolog), which I briefly discuss below:
+
+    permutation(Xs, Ys) :-
+    	permutation(Xs, Ys, Ys).
+    permutation([],[],[]).
+    permutation([X|Xs], Ys1, [_|Bound]) :-
+    	permutation(Xs, Ys, Bound),
+    	insert(Ys, X, Ys1).
+    insert(L, X, [X|L]).
+    insert([H|T], X, [H|L]) :-
+    	insert(T,X,L).
+
+If you would want to generate all permutations for a list `[1,2,3]`, you would call `permutation([1,2,3],Q)` and your Prolog interpreter of choice (e.g. [SWI-Prolog](http://www.swi-prolog.org/)) would generate the first possible result for Q and via backtracking generate all other possible permutations.
+
+	?- permutation([1,2,3],Q).
+	Q = [1, 2, 3] ;
+	Q = [2, 1, 3] ;
+	Q = [2, 3, 1] ;
+	Q = [1, 3, 2] ;
+	Q = [3, 1, 2] ;
+	Q = [3, 2, 1].
+
+Let's briefly discuss the Prolog solution, this will make it easier to discuss some issues when translating this to core.logic later on. Prolog uses _facts_ and _rules_ to prove some query. E.g., `permutation([],[],[]).` is a fact asserting that the permutation of an empty list is the empty list. Anything involving `:-` is a rule. Prolog uses [unifiction](https://en.wikipedia.org/wiki/Unification_(computer_science)) -- hang on, you'll see in a second what this is. Second, you see all those `[X|Xs]` constructions. These are basically list (de-)construction operations: they split off the first element or add an element (_head_) and some rest (_tail_) to form a new list. The point here is that if you're calling `permutation([1,2,3],Q,Q)` Prolog will try to _unify_ `[1,2,3]` with `[X|Xs]` which is possible when `X=1` and `Xs=[2,3]`. The `_` construct means "ignore", "don't care". If we consider only the `insert` fact (i.e. the first statement), this fact can be used by Prolog via unification to answer queries about any value of the predicate:
+
+	?- insert([2,3],1,Q).
+	Q = [1, 2, 3] 
+	?- insert([2,3],Q,[1,2,3]).
+	Q = 1 
+	?- insert(Q,1,[1,2,3]).
+	Q = [2, 3] 
+
+The key to understand how `permutation` works is considering how `insert` works: the `insert` rule will deconstruct the first argument (assuming it's a list) and insert the second argument to it. This way, `X` will be inserted in all possible positions of the list:
+
+	?- insert([2,3],1,Q).
+	Q = [1, 2, 3] ;
+	Q = [2, 1, 3] ;
+	Q = [2, 3, 1].
+
+
+
+
+
