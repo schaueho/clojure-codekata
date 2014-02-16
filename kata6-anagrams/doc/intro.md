@@ -183,16 +183,74 @@ For the next solution, I intended to use something else. I had the chance to hea
 
     permutation(Xs, Ys) :-
     	permutation(Xs, Ys, Ys).
+		
     permutation([],[],[]).
     permutation([X|Xs], Ys1, [_|Bound]) :-
     	permutation(Xs, Ys, Bound),
     	insert(Ys, X, Ys1).
+		
     insert(L, X, [X|L]).
     insert([H|T], X, [H|L]) :-
     	insert(T,X,L).
 
-If you would want to generate all permutations for a list `[1,2,3]`, you would call `permutation([1,2,3],Q)` and your Prolog interpreter of choice (e.g. [SWI-Prolog](http://www.swi-prolog.org/)) would generate the first possible result for Q and via backtracking generate all other possible permutations. Let's briefly discuss the Prolog solution, this will make it easier to discuss some issues when translating this to core.logic later on. First thing you need to know is that Prolog uses [unifiction](https://en.wikipedia.org/wiki/Unification_(computer_science)) -- hang on, you'll see in a second what this is. Second, you see all those `[X|Xs]` constructions. These are basically list (de-)construction operations: they split off the first element or add an element (_head_) and some rest (_tail_) to form a new list. The point here is that if you're calling `permutation([1,2,3],Q,Q)` Prolog will try to _unify_ `[1,2,3]` with `[X|Xs]` which is possible when `X=1` and `Xs=[2,3]`. The `_` construct means "ignore", "don't care".
+If you would want to generate all permutations for a list `[1,2,3]`, you would call `permutation([1,2,3],Q)` and your Prolog interpreter of choice (e.g. [SWI-Prolog](http://www.swi-prolog.org/)) would generate the first possible result for Q and via backtracking generate all other possible permutations.
 
+	?- permutation([1,2,3],Q).
+	Q = [1, 2, 3] ;
+	Q = [2, 1, 3] ;
+	Q = [2, 3, 1] ;
+	Q = [1, 3, 2] ;
+	Q = [3, 1, 2] ;
+	Q = [3, 2, 1].
 
+Let's briefly discuss the Prolog solution, this will make it easier to discuss some issues when translating this to core.logic later on. Prolog uses _facts_ and _rules_ to prove some query. E.g., `permutation([],[],[]).` is a fact asserting that the permutation of an empty list is the empty list. Anything involving `:-` is a rule. Prolog uses [unifiction](https://en.wikipedia.org/wiki/Unification_(computer_science)) -- hang on, you'll see in a second what this is. Second, you see all those `[X|Xs]` constructions. These are basically list (de-)construction operations: they split off the first element or add an element (_head_) and some rest (_tail_) to form a new list. The point here is that if you're calling `permutation([1,2,3],Q,Q)` Prolog will try to _unify_ `[1,2,3]` with `[X|Xs]` which is possible when `X=1` and `Xs=[2,3]`; i.e. Prolog automatically tries argument unification. The `_` construct means "ignore", "don't care". If we consider only the `insert` fact (i.e. the first statement), this fact can be used by Prolog via unification to answer queries about any value of the predicate:
 
+	?- insert([2,3],1,Q).
+	Q = [1, 2, 3] 
+	?- insert([2,3],Q,[1,2,3]).
+	Q = 1 
+	?- insert(Q,1,[1,2,3]).
+	Q = [2, 3] 
+
+The key to understand how `permutation` works is considering how `insert` works: the `insert` rule will deconstruct the first argument (assuming it's a list) and insert the second argument to it. This way, `X` will be inserted in all possible positions of the list:
+
+	?- insert([2,3],1,Q).
+	Q = [1, 2, 3] ;
+	Q = [2, 1, 3] ;
+	Q = [2, 3, 1].
+
+Now, if you take a closer look at the `permutation/3` rule, you'll recognize that it first of all contains a recursive call to itself. This will basically decompose the first argument (if given) until it reaches the `permutation` fact governing the base case, i.e. the empty list. It will then `insert` the elements according to the behavior discussed above. You can think of all comma `,` as `and` including a notion of order, i.e. the `insert` clause will only be used after having processed the recursive call to `permutation` _on each level_, respectively. This basically implies a depth-first search -- i.e. for generating the multiple values for Q, Prolog will try to find different possible combinations by retrying parts of the computation. This will in particular trigger the computation of the different results of `insert/3`.
+
+Now let's come back to Clojure's core.logic which provides an implementation of many useful things for logic programming based on [mini-karen](). However, as an add-on to a functional programming language, we will have to use some special operators to translate the Prolog code. The first thing needed is the declaration of the query variables (e.g. `Q`) within the call to `run*`, without it you would never see any results (besides `run*` causing the inference machinery to, well, run). The next operator is `==` which is used for unification, which is used just as `=` would be in Prolog inside some rule. There is also an explicit operator `conde` (similar to `cond`) which can be thought of as providing disjunction (or). You need this to be able to mimick Prolog's multiple facts/rules with the same predicate, e.g. having a simple fact and a rule for `permutation/3`. There are also further predicates, e.g. `conso` which can be used to splice/construct lists. This is all nicely explained in the [introduction to core.logic FIX ME](). I actually started out trying to convert the Prolog code with not much else, like this:
+
+	(defn insert-broken [x l nl]
+	  (conde
+	  [(conso x l nl)]
+	  [(fresh [h t]
+           (conso h t l)
+           (insert x t l)
+           (conso h l nl))]))
+
+You'll note that I exchanged the position of single argument and list in order to match it with the usual argument positions of `conso` (or `conj`). Otherwise this looks like a pretty straight translation of the Prolog rules above: it's either we can directly (via `conso` (de)construct the list) or we recurse. This version is broken in multiple ways, though. First of all, when you test this version, the recursive call to `insert` is not constrained _enough_ wrt. the value of `l`, which will trigger an infinite recursion. You need to put the recursive call behind the second call to `conso` (cf. the discussion of my [inquiry on StackOverflow FIX LINK]()). However, there is another issue lurking which you can see when comparing the results: 
+
+	(defn insert-still-broken [x l nl]
+	  (conde
+	  [(conso x l nl)]
+	  [(fresh [h t]
+           (conso h t l)
+           (conso h l nl)
+           (insert x t l)])))
+
+      (fact "Simple insert"
+             (run* [q] (insert 1 [2 3] q)) => '((1 2 3) (2 1 3) (2 3 1)))
+
+This fact will fail, the still broken version generates only a single result, inserting the element only in the first position, not in the other positions of `l`.  The reason for this is that we are constraining the solution too much, by using `l` in the recursive call, thereby re-using the value of `l` from the initial call. This is not what we are doing in the Prolog version, there `l` is just a temporary value generated in the recursive call. I.e. I fooled myself by basically running into a variable capture problem. So, the correct version of `insert` looks like this, introducting another fresh variable `l1`.
+
+	(defn insert [x l nl]
+	  (conde
+	  [(conso x l nl)]
+	  [(fresh [h t l1]
+           (conso h t l)
+           (conso h l1 nl)
+           (insert x t l1))]))
 
