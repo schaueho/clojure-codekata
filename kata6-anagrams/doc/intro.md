@@ -21,6 +21,9 @@ This time, I opted for using [midje](https://github.com/marick/Midje) for runnin
 
 You can already see from the latter fact what is wrong with the initial solution: it's too simplistic with regard to handling the number of occurences of some character. (Some might say, the introduction of `remove-blanks` also is too complicated, but I wanted to handle [Anne Clark's "The law is an anagram of wealth"](http://www.lastfm.de/music/Anne+Clark/THE+LAW+Is+An+Anagram+of+WEALTH).
 
+Traditional solution
+--------------------
+
 When I finally had some more time to read the kata description more carefully, I recognized that the task actually is to find all anagrams of a given word, checking back against a given wordlist. So that means that the kata consists of two tasks: generate all possible combinations for a given character sequence and check in this wordlist whether some candidate character sequence amounts to a known word. Now, if you take a step back, it's easy to see that anagrams are nothing else than permutations of the elements of a given (character) sequence, with the additional restriction that all such permutations must be (known) words again. So, we end up with a skeleton which looks like this:
 
 	(defn generate-anagrams [word]
@@ -179,7 +182,10 @@ I ran into a StackOverflowException for "boaster" though. Looking at the code, i
 I use an external helper here because we need to add the start permutation to the final result up-front and that doesn't lend itself to a self-recursive function. 
 Anyway, this concludes the first solution using a rather traditional algorithm.
 
-For the next solution, I intended to use something else. I had the chance to hear David Nolen talk about [core.logic](https://github.com/clojure/core.logic) which reminded me a lot of the old days in which I was using [Prolog](https://en.wikipedia.org/wiki/Prolog) for computational linguistics and logic programming. In particular I was thinking of a permutation implementation in Prolog described in Richard O'Keefe's [Craft of Prolog](https://mitpress.mit.edu/books/craft-prolog), which I briefly discuss below:
+Declarative solution
+--------------------
+
+For the next solution, I intended to use something else. Last year, I had the chance to hear David Nolen talk about [core.logic](https://github.com/clojure/core.logic) which reminded me a lot of the old days in which I was using [Prolog](https://en.wikipedia.org/wiki/Prolog) for computational linguistics and logic programming. In particular I was thinking of a permutation implementation in Prolog described in Richard O'Keefe's [Craft of Prolog](https://mitpress.mit.edu/books/craft-prolog), which I briefly discuss below:
 
     permutation(Xs, Ys) :-
     	permutation(Xs, Ys, Ys).
@@ -221,17 +227,17 @@ The key to understand how `permutation` works is considering how `insert` works:
 
 Now, if you take a closer look at the `permutation/3` rule, you'll recognize that it first of all contains a recursive call to itself. This will basically decompose the first argument (if given) until it reaches the `permutation` fact governing the base case, i.e. the empty list. It will then `insert` the elements according to the behavior discussed above. You can think of all comma `,` as `and` including a notion of order, i.e. the `insert` clause will only be used after having processed the recursive call to `permutation` _on each level_, respectively. This basically implies a depth-first search -- i.e. for generating the multiple values for Q, Prolog will try to find different possible combinations by retrying parts of the computation. This will in particular trigger the computation of the different results of `insert/3`.
 
-Now let's come back to Clojure's core.logic which provides an implementation of many useful things for logic programming based on [mini-karen](). However, as an add-on to a functional programming language, we will have to use some special operators to translate the Prolog code. The first thing needed is the declaration of the query variables (e.g. `Q`) within the call to `run*`, without it you would never see any results (besides `run*` causing the inference machinery to, well, run). The next operator is `==` which is used for unification, which is used just as `=` would be in Prolog inside some rule. There is also an explicit operator `conde` (similar to `cond`) which can be thought of as providing disjunction (or). You need this to be able to mimick Prolog's multiple facts/rules with the same predicate, e.g. having a simple fact and a rule for `permutation/3`. There are also further predicates, e.g. `conso` which can be used to splice/construct lists. This is all nicely explained in the [introduction to core.logic FIX ME](). I actually started out trying to convert the Prolog code with not much else, like this:
+Now let's come back to Clojure's core.logic which provides an implementation of many useful things for logic programming based on [mini-karen](). However, as an add-on to a functional programming language, we will have to use some special operators to translate the Prolog code. The first thing needed is the declaration of the query variables (e.g. `Q`) within the call to `run*`, without it you would never see any results (besides `run*` causing the inference machinery to, well, run). The next operator is `==` which is used for unification, which is used just as `=` would be in Prolog inside some rule. Sometimes you need temporary logic variables which you can introduce with `fresh`. There is also an explicit operator `conde` (similar to `cond`) which can be thought of as providing disjunction (or). You need this to be able to mimick Prolog's multiple facts/rules with the same predicate, e.g. having a simple fact and a rule for `permutation/3`. There are also further predicates, e.g. `conso` which can be used to splice/construct lists. This is all nicely explained in the [core.logic Primer](https://github.com/clojure/core.logic/wiki/A-Core.logic-Primer). I actually started out trying to convert the Prolog code with not much else, like this:
 
 	(defn insert-broken [x l nl]
 	  (conde
 	  [(conso x l nl)]
 	  [(fresh [h t]
            (conso h t l)
-           (insert x t l)
+           (insert-broken x t l)
            (conso h l nl))]))
 
-You'll note that I exchanged the position of single argument and list in order to match it with the usual argument positions of `conso` (or `conj`). Otherwise this looks like a pretty straight translation of the Prolog rules above: it's either we can directly (via `conso` (de)construct the list) or we recurse. This version is broken in multiple ways, though. First of all, when you test this version, the recursive call to `insert` is not constrained _enough_ wrt. the value of `l`, which will trigger an infinite recursion. You need to put the recursive call behind the second call to `conso` (cf. the discussion of my [inquiry on StackOverflow FIX LINK]()). However, there is another issue lurking which you can see when comparing the results: 
+You'll note that I exchanged the position of single argument and list in order to match it with the usual argument positions of `conso` (or `conj`). Otherwise this looks like a pretty straight translation of the Prolog rules above: it's either we can directly (via `conso`) (de)construct the list or we recurse. This version is broken in multiple ways, though. First of all, when you test this version, the recursive call to `insert` is not constrained _enough_ wrt. the value of `l`, which will trigger an infinite recursion. You need to put the recursive call behind the second call to `conso` (cf. the discussion of my [inquiry on StackOverflow](https://stackoverflow.com/questions/21427425/translating-the-insert-fact-from-prolog-to-core-logic)). However, there is another issue lurking which you can see when comparing the results: 
 
 	(defn insert-still-broken [x l nl]
 	  (conde
@@ -239,12 +245,17 @@ You'll note that I exchanged the position of single argument and list in order t
 	  [(fresh [h t]
            (conso h t l)
            (conso h l nl)
-           (insert x t l)])))
+           (insert-still-broken x t l))]))
 
-      (fact "Simple insert"
-             (run* [q] (insert 1 [2 3] q)) => '((1 2 3) (2 1 3) (2 3 1)))
+	FAIL "Checking insert - Simple insert" at (logic_test.clj:11)
+    Expected: ((1 2) (2 1))
+      Actual: ((1 2))
 
-This fact will fail, the still broken version generates only a single result, inserting the element only in the first position, not in the other positions of `l`.  The reason for this is that we are constraining the solution too much, by using `l` in the recursive call, thereby re-using the value of `l` from the initial call. This is not what we are doing in the Prolog version, there `l` is just a temporary value generated in the recursive call. I.e. I fooled myself by basically running into a variable capture problem. So, the correct version of `insert` looks like this, introducting another fresh variable `l1`.
+	FAIL "Checking insert - Simple insert" at (logic_test.clj:12)
+    Expected: ((1 2 3) (2 1 3) (2 3 1))
+      Actual: ((1 2 3))
+
+As you can see, this version generates only a single result, inserting the element just in the first position, not in the other positions of `l`.  The reason for this is that we are constraining the solution too much: by using `l` in the recursive call, we're constraining the "result" (the value of the third argument) to the initial value of `l` . This is not what we are doing in the Prolog version, there `l` is just a temporary value generated in the recursive call. I.e. I fooled myself by basically running into a variable capture problem. So, the correct version of `insert` looks like this, introducing another fresh variable `l1`.
 
 	(defn insert [x l nl]
 	  (conde
@@ -254,3 +265,39 @@ This fact will fail, the still broken version generates only a single result, in
            (conso h l1 nl)
            (insert x t l1))]))
 
+However, the discussion on StackOverflow also pointed me to the matching predicates which are also shown, but not explained at all in the [examples section of the core.logic wiki](https://github.com/clojure/core.logic/wiki/Examples). In particular, core.logic offers a `defne` macro which basically provides a pattern matching facility which is remarkably close to what Prolog provides wrt. argument matching. Consider the following version of the same predicate using `defne`:
+
+	(defne inserto [L X NL]
+		([L X (X . L)])
+		([(H . T) X (H . L1)]
+			(inserto T X L1)))
+
+`defne` will basically expand into a set of `conde` expressions, but will also generate fresh variables and matching/unify expressions as appropriate. If you compare this version with the Prolog version, it's easy to see the parallels: in the second rule, the given arguments to the parameter list `L X NL` will be tried to unify with `[(H . T) X (H . L1)]` (note that `inserto` uses the same parameter order as the Prolog version), thereby decomposing any sequence given as `L` into head `H` and tail `T` -- this is basically the same as `(conso H T L)`.
+
+Having covered all those nitty-gritty details of `insert`, understanding `permuto/3` should be straight-forward:
+
+	(defne permuto3 [I O L*]
+	  ([nil nil nil])
+	  ([() () ()])
+	  ([(X . Xs) Ys1 (_ . Bound)]
+		  (fresh [Ys]
+            (permuto3 Xs Ys Bound)
+            (inserto Ys X Ys1))))
+
+We have two (empty) base cases and a recursive clause again. We're decomposing the input `I` into `(X . Xs)` and unify `O` (typically the query variable) to `Ys1`. Using a fresh new variable we recurse with the sublist `Xs` down to produce permutations of the sublist, eventually inserting `X` into them. For reference, this is what the non-matching version looks like which makes the argument unification and the value decomposition much more obvious:
+
+	(defn permutation
+		([xs ys] (permutation xs ys ys))
+		([xl yl res]
+		(conde 
+			[(== xl '()) (== yl '()) (== res '())]
+			[(== xl nil) (== yl nil) (== res nil)]
+			[(fresh [_ x xs ys bound]
+				(conso x xs xl)
+                (permutation xs ys bound)
+				(conso _ bound res)
+				(insert x ys yl))])))
+
+We can finally wrap this permutation into the same surrounding code we used for the traditional solution to this anagram kata to compute nearly the same results (the order will differ).
+
+Wrapping up, this kata was actually quite hard to solve and took quite a while. I spend too much time trying to find the traditional solution myself before focussing on translating it to Clojure. And then it took me also way more time than I had imagined getting into core.logic, which could use quite a bit more documentation besides the primer on the basics.
