@@ -135,6 +135,142 @@ When combining this with the `ngram` function, this is already pretty close to w
 	kata14-trigrams.core> (map #(ngram %1 3)
 		                       (tokenize "Are you ready, Tom? I want to go."))
 	((("Are" "you" "ready") ("you" "ready" ",") ("ready" "," "Tom") ("," "Tom") ("Tom"))
-	 (("I" "want" "to") ("want" "to" "go") ("to" "go") ("go")))
+	(("I" "want" "to") ("want" "to" "go") ("to" "go") ("go")))
 
+So, let's move to the next part which is generating ngrams for an entire file. First of all, I think that again we better do this in a lazy fashion, no need to do lots processing of huge files that might not be completely necessary. Looking back we can see that for any given string `tokenize` processes the same string at least thrice: we're first splitting on sentence boundaries, then handle punctuation and finally split on whitespace. If you think about reading files, it's quite obvious that the `readLine` method of `java.io.BufferedReader` which is behind Clojure's `line-seq` is also processing buffers quite similarly looking for line ends to split on. Maybe, we can combine some of the work? Let's start out with figuring out how to process a file char by char lazily. An answer to a [stackoverflow question on processing files per character in Clojure](https://stackoverflow.com/questions/11669404/processing-a-file-character-by-character-in-clojure) strictly follows `line-seq`:
+
+	(defn char-seq
+	  [^java.io.Reader rdr]
+	  (when-let [chr (.read rdr)]
+		  (if (>= chr 0)
+			  (cons (char chr) (lazy-seq (char-seq rdr))))))
+
+This is a start but not too helpful as discussed in this other [stackoverflow thread on processing large text files](https://stackoverflow.com/questions/4118123/read-a-very-large-text-file-into-a-list-in-clojure/10462159#10462159), as the result of `line-seq` and `char-seq` is a cons and the lazy part of it doesn't help you much when you're not processing the file right away. Instead one might want to return a lazy sequence of results, closing the file only afterwards. This could like this:
+
+	; cf. https://stackoverflow.com/questions/4118123/read-a-very-large-text-file-into-a-list-in-clojure/10462159#10462159
+	(defn lazy-file-chars [file]
+	   (letfn [(lfl-helper [rdr]
+		          (lazy-seq
+					  (if-let [chr (.read rdr)]
+						  (when (> chr 0)
+							  (cons (char chr) (lfl-helper rdr)))
+						  (do (.close rdr) nil))))]
+	      (lfl-helper (clojure.java.io/reader file))))
+
+When you look at this simple piece of code, besides reading characters from disc and building up a lazy-seq, it's also a) doing a sanity check on the input and b) building up a particular structure to return. Sounds exactly like the hooks we might want to consider for parsing sentences on read. Let's rip the code apart and combine it with the guts of `split-sentences` (matching explicitly on characters instead of using regular expression character classes):
+
+	(defn read-next-sentence [rdr aux]
+	   (if-let [chr (.read rdr)]
+		   (let [character (char chr)]
+		     (cond (= \. character) aux
+              (= \? character) aux
+              (= \! character) aux
+              (= \tab character) (recur rdr (conj aux \ ))
+              :else (recur rdr (conj aux character))))
+	   aux))
+	   
+	(defn file-sentences [file]
+		(letfn [(lfs-helper [rdr]
+			        (lazy-seq
+						(if-let [sentence (seq (read-next-sentence rdr (vector)))]
+							(cons (apply str sentence) (lfs-helper rdr))
+							(do (.close rdr) nil))))]
+	        (lfs-helper (clojure.java.io/reader file))))
+
+`read-next-sentence` has some obvious deficancies: it now splits sentences on every occurance of `.?!`, not only on those occurences which are followed by whitespace. Second, it should handle (only) multiple occurances of `\return\newline` characters (CRLF) as sentence delimiters, too. Solving both of these issues requires to go in the direction of real parsers where we would have to see `aux` as a stack of previously read characters. And we might not only want to deal with tabs specially (turning them into a space), e.g. we might want to replace multiple spaces/tabs into a single space etc. I'll just draw a sketch here that we might want to elaborate further:
+
+	(fact "Test for sentence end"
+      (sentence-end-p \space   [\g \o \.])                    => true
+      (sentence-end-p \space   [\r \e \a \d \y \?])           => true
+      (sentence-end-p \newline [\y \return \newline \return]) => true
+      (sentence-end-p \newline [\y \newline])                 => true
+      (sentence-end-p "B"      [\.])                          => false
+      (sentence-end-p \newline [\y \return])                  => false
+      (sentence-end-p \newline [\y])                          => false)
+
+	(fact "Parse result for characters depends on previous reads"
+      (next-char-result \space   [\g \o \space])  => [\g \o \space]
+      (next-char-result \tab     [\g \o])         => [\g \o \space]
+      (next-char-result \tab     [\g \o \space])  => [\g \o \space]
+      (next-char-result \tab     [\g \o \tab])    => [\g \o \space]
+      (next-char-result \return  [\g \o])         => [\g \o]
+      (next-char-result \newline [\g \o \return]) => [\g \o \space]
+      (next-char-result \newline [\g \o])         => [\g \o \space])
+
+	(defn sentence-end-p [character charstack]
+	    (cond (and (= character \space)
+                   (some (partial = (peek charstack)) [\. \? \!])) true
+              (and (= character \return)
+                   (some (partial = (peek charstack)) [\. \? \!])) true
+              (and (= character \newline)
+                   (some (partial = (peek charstack)) [\. \? \!])) true
+              (and (= character \newline)
+                   (or (= (peek charstack) \newline)
+                       (and (= (peek charstack) \return)
+                            (= (peek (pop charstack)) \newline)))) true
+              :else false))
+
+	(defn next-char-result [character charstack]
+	     (cond (and (empty? charstack)
+			        (or (= character \space)
+                    (= character \tab)
+                    (= character \newline)
+                    (= character \return))) charstack
+               (and (= character \space)
+				    (= (peek charstack) \space))  charstack
+			   (and (= character \tab)
+				    (= (peek charstack) \space))  charstack
+	           (and (= character \tab)
+			        (= (peek charstack) \tab))  (conj (pop charstack) \space) ; should never happen
+			   (= character \tab) (conj charstack \space)
+               (= character \return) charstack
+               (and (= character \newline)
+                    (= (peek charstack) \space)) charstack
+               (and (= character \newline)
+                    (= (peek charstack) \return)) (conj (pop charstack) \space) ; should never happen
+               (= character \newline) (conj charstack \space)
+               :else (conj charstack character)))
+
+I'll leave it at that, although it's clear that we can and probably should extend it in many different ways. Here are the adapted functions
+to use these:
+
+	(defn read-next-sentence
+	   ([rdr]
+		   (read-next-sentence rdr (vector) (vector)))
+	   ([rdr seen result]
+	       (if-let [chr (.read rdr)]
+			   (when (> chr 0)
+				   (let [character (char chr)]
+					   (if (sentence-end-p character seen)
+						   result
+						   (recur rdr (conj seen character)
+							   (next-char-result character result)))))
+			   result)))
+
+	(defn file-sentences [file]
+		(letfn [(lfs-helper [rdr]
+			        (lazy-seq
+						(if-let [sentence (seq (read-next-sentence rdr))]
+							(cons (apply str sentence) (lfs-helper rdr))
+							(do (.close rdr) nil))))]
+			(lfs-helper (clojure.java.io/reader file))))
+
+The result is here that we now have a `read-next-sentence` function which just reads (non-lazily) and a (local) helper function which uses it to build up lazy sequence of sentences. Let's test it briefly:
+
+	kata14-trigrams.core> (pprint 
+		                    (map #(ngram %1 3) 
+							   (tokenize-sentences 
+								  (take 2 
+							        (file-sentences test-file)))))
+	((("The" "Project" "Gutenberg")
+	 ("Project" "Gutenberg" "EBook")
+	 ("Gutenberg" "EBook" "of")
+	 ("EBook" "of" "Tom")
+	 ("of" "Tom" "Swift")
+	 ("Tom" "Swift" "and")
+     ("Swift" "and" "his")
+     ("and" "his" "Airship")
+	 ...
+
+Although one would probably now integrate more functionality from `tokenize-sentences` into `read-next-sentence`, I'll won't elaborate this now and see task 2 as solved.
 

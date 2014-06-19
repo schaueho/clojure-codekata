@@ -48,3 +48,58 @@
   (-> string
       (split-sentences)
       (tokenize-sentences)))
+
+(defn sentence-end-p [character charstack]
+  (cond (and (= character \space)
+             (some (partial = (peek charstack)) [\. \? \!])) true
+        (and (= character \return)
+             (some (partial = (peek charstack)) [\. \? \!])) true
+        (and (= character \newline)
+             (some (partial = (peek charstack)) [\. \? \!])) true
+        (and (= character \newline)
+             (or (= (peek charstack) \newline)
+                   (and (= (peek charstack) \return)
+                        (= (peek (pop charstack)) \newline)))) true
+          :else false))
+
+(defn next-char-result [character charstack]
+  (cond (and (empty? charstack)
+             (or (= character \space)
+                 (= character \tab)
+                 (= character \newline)
+                 (= character \return))) charstack
+        (and (= character \space)
+             (= (peek charstack) \space))  charstack
+        (and (= character \tab)
+             (= (peek charstack) \space))  charstack
+        (and (= character \tab)
+             (= (peek charstack) \tab))  (conj (pop charstack) \space) ; should never happen
+        (= character \tab) (conj charstack \space)
+        (= character \return) charstack
+        (and (= character \newline)
+             (= (peek charstack) \space)) charstack
+        (and (= character \newline)
+             (= (peek charstack) \return)) (conj (pop charstack) \space) ; should never happen
+        (= character \newline) (conj charstack \space)
+        :else (conj charstack character)))
+
+(defn read-next-sentence
+  ([rdr]
+     (read-next-sentence rdr (vector) (vector)))
+  ([rdr seen result]
+     (if-let [chr (.read rdr)]
+       (when (>= chr 0)
+         (let [character (char chr)]
+           (if (sentence-end-p character seen)
+             result
+             (recur rdr (conj seen character)
+                    (next-char-result character result)))))
+       result)))
+
+(defn file-sentences [file]
+  (letfn [(lfs-helper [rdr]
+            (lazy-seq
+             (if-let [sentence (seq (read-next-sentence rdr))]
+               (cons (apply str sentence) (lfs-helper rdr))
+               (do (.close rdr) nil))))]
+    (lfs-helper (clojure.java.io/reader file))))

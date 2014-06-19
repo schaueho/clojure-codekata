@@ -28,3 +28,24 @@
 (fact "Tokenize an input string, splitting sentences along the way"
       (tokenize "Are you ready, Tom? I want to go.") => '(("Are" "you" "ready" "," "Tom")
                                                           ("I" "want" "to" "go")))
+
+(fact "Test for sentence end"
+      (sentence-end-p \space   [\g \o \.])                    => true
+      (sentence-end-p \space   [\r \e \a \d \y \?])           => true
+      (sentence-end-p \newline [\y \return \newline \return]) => true
+      (sentence-end-p \newline [\y \newline])                 => true
+      (sentence-end-p "B"      [\.])                          => false
+      (sentence-end-p \newline [\y \return])                  => false
+      (sentence-end-p \newline [\y])                          => false)
+
+(fact "Parse result for characters depends on previous reads"
+      (next-char-result \space   [\g \o \space])  => [\g \o \space]
+      (next-char-result \tab     [\g \o])         => [\g \o \space]
+      (next-char-result \tab     [\g \o \space])  => [\g \o \space]
+      (next-char-result \tab     [\g \o \tab])    => [\g \o \space]
+      (next-char-result \return  [\g \o])         => [\g \o]
+      (next-char-result \newline [\g \o \return]) => [\g \o \space]
+      (next-char-result \newline [\g \o])         => [\g \o \space])
+
+
+
