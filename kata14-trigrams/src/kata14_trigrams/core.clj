@@ -87,19 +87,21 @@
   ([rdr]
      (read-next-sentence rdr (vector) (vector)))
   ([rdr seen result]
-     (if-let [chr (.read rdr)]
-       (when (>= chr 0)
+     (let [chr (.read rdr)]
+       (if (and chr
+                (>= chr 0))
          (let [character (char chr)]
            (if (sentence-end-p character seen)
              result
              (recur rdr (conj seen character)
-                    (next-char-result character result)))))
-       result)))
+                    (next-char-result character result))))
+         result))))
 
-(defn file-sentences [file]
+(defn read-sentences [x]
+  "Uses clojure.java.io/reader to read sentences from x."
   (letfn [(lfs-helper [rdr]
             (lazy-seq
              (if-let [sentence (read-next-sentence rdr)]
                (cons (apply str sentence) (lfs-helper rdr))
                (do (.close rdr) nil))))]
-    (lfs-helper (clojure.java.io/reader file))))
+    (lfs-helper (clojure.java.io/reader x))))

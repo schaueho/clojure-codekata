@@ -238,22 +238,23 @@ to use these:
 	   ([rdr]
 		   (read-next-sentence rdr (vector) (vector)))
 	   ([rdr seen result]
-	       (if-let [chr (.read rdr)]
-			   (when (> chr 0)
+	       (let [chr (.read rdr)]
+			   (if (and chr
+			            (>= chr 0))
 				   (let [character (char chr)]
 					   (if (sentence-end-p character seen)
 						   result
 						   (recur rdr (conj seen character)
-							   (next-char-result character result)))))
-			   result)))
+							   (next-char-result character result))))
+			       result))))
 
-	(defn file-sentences [file]
+	(defn read-sentences [x]
 		(letfn [(lfs-helper [rdr]
 			        (lazy-seq
 						(if-let [sentence (read-next-sentence rdr)]
 							(cons (apply str sentence) (lfs-helper rdr))
 							(do (.close rdr) nil))))]
-			(lfs-helper (clojure.java.io/reader file))))
+			(lfs-helper (clojure.java.io/reader x))))
 
 The result is here that we now have a `read-next-sentence` function which just reads (non-lazily) and a (local) helper function which uses it to build up lazy sequence of sentences. Let's test it briefly:
 
@@ -261,7 +262,7 @@ The result is here that we now have a `read-next-sentence` function which just r
 		                    (map #(ngram %1 3) 
 							   (tokenize-sentences 
 								  (take 2 
-							        (file-sentences test-file)))))
+							        (read-sentences test-file)))))
 	((("The" "Project" "Gutenberg")
 	 ("Project" "Gutenberg" "EBook")
 	 ("Gutenberg" "EBook" "of")
@@ -272,5 +273,12 @@ The result is here that we now have a `read-next-sentence` function which just r
      ("and" "his" "Airship")
 	 ...
 
-Although one would probably now integrate more functionality from `tokenize-sentences` into `read-next-sentence`, I'll won't elaborate this now and see task 2 as solved.
+Although one would probably now integrate more functionality from `tokenize-sentences` into `read-next-sentence`, I'll won't elaborate this now and see task 2 as solved. As a side note, this looks as if it's only restricted to files now, but it really isn't, as `clojure.java.io/reader` will happily accept `StringReader` arguments:
+
+	kata14-trigrams.core> (import java.io.StringReader)
+	java.io.StringReader
+	kata14-trigrams.core> (take 2 (read-sentences (StringReader. "This is a sentence. And another one")))
+	("This is a sentence." "And another one")
+
+
 
