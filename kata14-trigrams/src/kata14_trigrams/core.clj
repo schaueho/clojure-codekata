@@ -99,7 +99,7 @@
 (defn file-sentences [file]
   (letfn [(lfs-helper [rdr]
             (lazy-seq
-             (if-let [sentence (seq (read-next-sentence rdr))]
+             (if-let [sentence (read-next-sentence rdr)]
                (cons (apply str sentence) (lfs-helper rdr))
                (do (.close rdr) nil))))]
     (lfs-helper (clojure.java.io/reader file))))
