@@ -280,5 +280,32 @@ Although one would probably now integrate more functionality from `tokenize-sent
 	kata14-trigrams.core> (take 2 (read-sentences (StringReader. "This is a sentence. And another one")))
 	("This is a sentence." "And another one")
 
+Taking a stab at task 3, concurrent processing of input files, we could imagine several scenarios. One could be in which we're simply parsing multiple files into a single trigram collection, hopefully in parallel. Another one could be in which we want to handle more and more files over time, e.g. because users can add more files interactively (web app or something). Let's tackle the first scenario first, using futures. The following code simply wraps our little test function from above into `future` calls. We trigger the parallel computation via `doall` (which would otherwise be delayed until dereference due to the implicit lazyness):
+
+	(defn inputs-to-future-ngrams 
+		"Convert a sequence of reader-readable inputs (files, urls, etc.) into future ngrams"
+		[inputs n]
+		(doall
+			(map 
+				#(future
+					(map 
+						(fn [tokens] 
+							(ngram tokens n))
+						(tokenize-sentences (read-sentences %1))))
+	            inputs)))
+
+	kata14-trigrams.core> (let [futsent (inputs-to-future-ngrams [swift-file] 3)]
+		                       (doseq [f futsent]
+						           (pprint (take 2 @f))))
+	((("The" "Project" "Gutenberg")
+	  ("Project" "Gutenberg" "EBook")
+	  ("Gutenberg" "EBook" "of")
+	  ("EBook" "of" "Tom")
+	  ("of" "Tom" "Swift")
+	  ("Tom" "Swift" "and")
+	  ...
+
+
+
 
 

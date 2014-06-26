@@ -84,6 +84,7 @@
         :else (conj charstack character)))
 
 (defn read-next-sentence
+  "Read next sentence from reader 'rdr'"
   ([rdr]
      (read-next-sentence rdr (vector) (vector)))
   ([rdr seen result]
@@ -97,11 +98,24 @@
                     (next-char-result character result))))
          result))))
 
-(defn read-sentences [x]
+(defn read-sentences
   "Uses clojure.java.io/reader to read sentences from x."
+  [x]
   (letfn [(lfs-helper [rdr]
             (lazy-seq
              (if-let [sentence (read-next-sentence rdr)]
                (cons (apply str sentence) (lfs-helper rdr))
                (do (.close rdr) nil))))]
     (lfs-helper (clojure.java.io/reader x))))
+
+(defn inputs-to-future-ngrams 
+  "Convert a sequence of reader-readable inputs (files, urls, etc.) into future ngrams"
+  [inputs n]
+    (doall
+     (map 
+      #(future
+         (map 
+          (fn [tokens] 
+            (ngram tokens n))
+          (tokenize-sentences (read-sentences %1))))
+      inputs)))
