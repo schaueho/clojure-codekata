@@ -47,5 +47,15 @@
       (next-char-result \newline [\g \o \return]) => [\g \o \space]
       (next-char-result \newline [\g \o])         => [\g \o \space])
 
-
-
+(fact "Generate a map from (n-m) prefixes to suffixes"
+      (ngram-mapset '[[1  2 3] [2 3 4] [1 2 4]] 2) => {'(2 3) #{4}, 
+                                                           '(1 2) #{3 4}}
+      (ngram-mapset '(("I" "wish" "I") ("wish" "I" "may") 
+                          ("I" "may" "I")  ("may" "I" "wish") 
+                          ("I" "wish" "I") ("wish" "I" "might") 
+                          ("I" "might") ("might")) 2) => {'("might") #{}, 
+                                                          '("I" "might") #{}, 
+                                                          '("may" "I") #{"wish"}, 
+                                                          '("I" "may") #{"I"}, 
+                                                          '("wish" "I") #{"may" "might"}, 
+                                                          '("I" "wish") #{"I"}})

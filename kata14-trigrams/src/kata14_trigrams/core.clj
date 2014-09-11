@@ -1,5 +1,6 @@
 (ns kata14-trigrams.core
-  (require [clojure.string :as str]))
+  (require [clojure.string :as str]
+           [clojure.set :refer [union]]))
 
 (defn ngram
   "Given a sequence sq and a number n, returns a sequence of new contiguous sequences
@@ -119,3 +120,28 @@
             (ngram tokens n))
           (tokenize-sentences (read-sentences %1))))
       inputs)))
+
+(defn ngrams2prefixmap
+  "Takes a collection of ngrams and returns a map with prefixes of size 'prefixlength' to remainders."
+  [ngrams prefixlength]
+  (reduce (fn [m [k v]]
+            (assoc m k (union (get m k #{}) (set v))))
+          (hash-map)
+          (map #(split-at prefixlength %) ngrams)))
+
+(defn collect-mapset
+  "Call `f` on collection `coll` which is assumed to return a collection of key value pairs and groups this collection into a map `m` from keys to a set of all values for any given key."
+  ([f coll]
+     (collect-mapset f coll (hash-map)))
+  ([f coll m]
+     (reduce (fn [m [k v]]
+               (assoc m k (union (get m k #{}) (set v))))
+             m
+             (f coll))))
+
+(defn ngram-mapset
+  [ngrams pl]
+  (collect-mapset 
+   (fn [coll] 
+     (map #(split-at pl %1) coll)) 
+   ngrams))

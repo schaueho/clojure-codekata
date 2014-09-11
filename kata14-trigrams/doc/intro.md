@@ -231,8 +231,7 @@ When you look at this simple piece of code, besides reading characters from disc
                (= character \newline) (conj charstack \space)
                :else (conj charstack character)))
 
-I'll leave it at that, although it's clear that we can and probably should extend it in many different ways. Here are the adapted functions
-to use these:
+I'll leave it at that, although it's clear that we can and probably should extend it in many different ways. Here are the adapted functions to use these:
 
 	(defn read-next-sentence
 	   ([rdr]
@@ -297,15 +296,80 @@ Taking a stab at task 3, concurrent processing of input files, we could imagine 
 	kata14-trigrams.core> (let [futsent (inputs-to-future-ngrams [swift-file] 3)]
 		                       (doseq [f futsent]
 						           (pprint (take 2 @f))))
-	((("The" "Project" "Gutenberg")
-	  ("Project" "Gutenberg" "EBook")
-	  ("Gutenberg" "EBook" "of")
-	  ("EBook" "of" "Tom")
-	  ("of" "Tom" "Swift")
-	  ("Tom" "Swift" "and")
+	((("The" "Project" "Gutenberg")
+	  ("Project" "Gutenberg" "EBook")
+	  ("Gutenberg" "EBook" "of")
+	  ("EBook" "of" "Tom")
+	  ("of" "Tom" "Swift")
+	  ("Tom" "Swift" "and")
 	  ...
 
 
+Let's move further on with the original task which ultimately aims to produce random text from the trigrams computed from the original one. His main approach for this is to take a generated word pair A B (like a window of the last two words you've generated so far) and figure out what the next word would be by checking whether there is a trigram which starts with A B. He even suggests building a table which provides a mapping from all such pairs of A and B to some C such that A B C are a trigram in the original text. His suggestion looks a lot like being Ruby inspired and uses lists, but in Clojure we want to generate a map where the keys are a list of length 2 and the value is a set. For any pair A B, we can then select randomly from the set. So, we have to convert our currently plain vector of trigrams, grouping it by the first two words and collect the remaining third value. Now, although I said 'group by', `group-by` is not of much use here. 
 
+Let's start simple by splitting a given trigram: we just use `split-at`. Next, we will update a map using `assoc`. However, we need to check whether we have already some value for the prefix (i.e. our word pair): if so, we assume the value is a set to which we want to add our new suffix (set unification), otherwise we just convert the returned suffix (a list, as returned from `split-at`) to a set.
+
+	kata14-trigrams.core> (split-at 2 '("wish" "I" "may"))
+	[("wish" "I") ("may")]
+	kata14-trigrams.core> (let [mymap {'("wish" "I") #{"may"}}
+		                        newtri '("wish" "I" "might")
+     			                [k v] (split-at 2 newtri)]
+			                    (prn "Key: " k "Value:" v)
+			                (if (get mymap k nil)
+			                    (assoc mymap k (union (get mymap k) v))
+			                    (assoc mymap k (set v))))
+			
+    "Key: " ("wish" "I") "Value:" ("might")
+    {("wish" "I") #{"may" "might"}}
+	kata14-trigrams.core> (let [mymap {'("wish" "I") #{"may"}}
+		                        newtri '("a" "new" "try")
+     			                [k v] (split-at 2 newtri)]
+			                    (prn "Key: " k "Value:" v)
+			                (if (get mymap k nil)
+			                    (assoc mymap k (union (get mymap k) v))
+			                    (assoc mymap k (set v))))
+	"Key: " ("a" "new") "Value:" ("try")
+	{("a" "new") #{"try"}, ("wish" "I") #{"may"}}		
+
+This is the core part, now we just throw a `reduce`/`map` around it and stream-line the code a little, to finally end up with this small function:
+
+	(defn ngrams2prefixmap
+	   "Takes a collection of ngrams and returns a map with prefixes of size 'prefixlength' to remainders."
+       [ngrams prefixlength]
+	   (reduce (fn [m [k v]]
+                   (assoc m k (union (get m k #{}) (set v))))
+			       (hash-map)
+			    (map #(split-at prefixlength %) ngrams)))
+
+I don't know whether this is really useful, but I have the impression there is something more generally useful embedded in here, so let's extract it and reformulate a little.
+
+	(defn collect-mapset
+	  "Call `f` on collection `coll` which is assumed to return a collection of key value pairs and groups this collection into a map `m` from keys to a set of all values for any given key."
+	  ([f coll]
+        (collect-mapset f coll (hash-map)))
+	  ([f coll m]
+         (reduce 
+              (fn [m [k v]]
+                     (assoc m k (union (get m k #{}) (set v))))
+	          m
+              (f coll))))
+
+	 (defn ngram-mapset
+      [ngrams pl]
+      (collect-mapset 
+         (fn [coll] 
+             (map #(split-at pl %1) coll)) 
+         ngrams))
+
+     (fact "Takes n grams to generate a map from prefixes to a set of suffixes"
+       (ngram-mapset '[[1  2 3] [2 3 4] [1 2 4]] 2) => {'(2 3) #{4}, 
+                                                        '(1 2) #{3 4}}
+       (ngram-mapset '(("I" "wish" "I") ("wish" "I" "may") 
+                       ("I" "may" "I")  ("may" "I" "wish") 
+                       ("I" "wish" "I") ("wish" "I" "might")) 
+                      2) => {'("may" "I") #{"wish"}, 
+                             '("I" "may") #{"I"}, 
+                             '("wish" "I") #{"may" "might"}, 
+                             '("I" "wish") #{"I"}})
 
 
