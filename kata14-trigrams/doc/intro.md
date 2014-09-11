@@ -177,7 +177,7 @@ When you look at this simple piece of code, besides reading characters from disc
 							(do (.close rdr) nil))))]
 	        (lfs-helper (clojure.java.io/reader file))))
 
-`read-next-sentence` has some obvious deficancies: it now splits sentences on every occurance of `.?!`, not only on those occurences which are followed by whitespace. Second, it should handle (only) multiple occurances of `\return\newline` characters (CRLF) as sentence delimiters, too. Solving both of these issues requires to go in the direction of real parsers where we would have to see `aux` as a stack of previously read characters. And we might not only want to deal with tabs specially (turning them into a space), e.g. we might want to replace multiple spaces/tabs into a single space etc. I'll just draw a sketch here that we might want to elaborate further:
+`read-next-sentence` has some obvious deficiancies: it now splits sentences on every occurance of `.?!`, not only on those occurences which are followed by whitespace. Second, it should handle (only) multiple occurances of `\return\newline` characters (CRLF) as sentence delimiters, too. Solving both of these issues requires to go in the direction of real parsers where we would have to see `aux` as a stack of previously read characters. And we might not only want to deal with tabs specially (turning them into a space), e.g. we might want to replace multiple spaces/tabs into a single space etc. I'll just draw a sketch here that we might want to elaborate further:
 
 	(fact "Test for sentence end"
       (sentence-end-p \space   [\g \o \.])                    => true
@@ -307,7 +307,7 @@ Taking a stab at task 3, concurrent processing of input files, we could imagine 
 
 Let's move further on with the original task which ultimately aims to produce random text from the trigrams computed from the original one. His main approach for this is to take a generated word pair A B (like a window of the last two words you've generated so far) and figure out what the next word would be by checking whether there is a trigram which starts with A B. He even suggests building a table which provides a mapping from all such pairs of A and B to some C such that A B C are a trigram in the original text. His suggestion looks a lot like being Ruby inspired and uses lists, but in Clojure we want to generate a map where the keys are a list of length 2 and the value is a set. For any pair A B, we can then select randomly from the set. So, we have to convert our currently plain vector of trigrams, grouping it by the first two words and collect the remaining third value. Now, although I said 'group by', `group-by` is not of much use here. 
 
-Let's start simple by splitting a given trigram: we just use `split-at`. Next, we will update a map using `assoc`. However, we need to check whether we have already some value for the prefix (i.e. our word pair): if so, we assume the value is a set to which we want to add our new suffix (set unification), otherwise we just convert the returned suffix (a list, as returned from `split-at`) to a set.
+Let's start simple by splitting a given trigram: we just use `split-at`. Next, we will update a map using `assoc`. However, we need to check whether we have already some value for the prefix (i.e. our word pair): if so, we assume the value is a set to which we want to add our new suffix (set union), otherwise we just convert the returned suffix (a list, as returned from `split-at`) to a set.
 
 	kata14-trigrams.core> (split-at 2 '("wish" "I" "may"))
 	[("wish" "I") ("may")]
@@ -318,7 +318,6 @@ Let's start simple by splitting a given trigram: we just use `split-at`. Next, w
 			                (if (get mymap k nil)
 			                    (assoc mymap k (union (get mymap k) v))
 			                    (assoc mymap k (set v))))
-			
     "Key: " ("wish" "I") "Value:" ("might")
     {("wish" "I") #{"may" "might"}}
 	kata14-trigrams.core> (let [mymap {'("wish" "I") #{"may"}}
@@ -373,3 +372,72 @@ I don't know whether this is really useful, but I have the impression there is s
                              '("I" "wish") #{"I"}})
 
 
+For generating text randomly, Clojures `rand-nth` will provide us with the main functionality, which we can use to randomly select an element from a collection:
+
+	kata14-trigrams.core> (rand-nth (keys (ngram-mapset (ngram (first (tokenize "I wish I may I wish I might")) 3) 2)))	     
+	("wish" "I")
+	kata14-trigrams.core> (rand-nth (keys (ngram-mapset (ngram (first (tokenize "I wish I may I wish I might")) 3) 2)))	     
+	("I" "wish")
+	kata14-trigrams.core> (rand-nth (keys (ngram-mapset (ngram (first (tokenize "I wish I may I wish I might")) 3) 2)))	     
+	("I" "might")
+
+The generation function is fairly straight-forward. We use an accumulator to gather the result which we will convert to a string when one of the two end conditions is met: either the result is longer than a `maxlength` or for a given word pair (the `prefix`, which is just the last two words from what we've got so far) we cannot find a trigram A B C, so that C would be our next new word. For the start, we just take a random key from the generated map and also use it in the accumulator `result`.
+ 
+	(defn generate-random-text-helper [mapset ml result]
+		(if (>= (count result) ml)
+			(str/join " " result)
+			(let [prefix (take-last 2 result)
+				  suffixes (get mapset prefix [])
+				  newword (and (seq suffixes) (rand-nth (seq suffixes)))]
+			  (if newword
+				  (generate-random-text-helper mapset ml (conj result newword))
+				  (str/join " " result)))))
+
+	(defn generate-random-text [ngrams n maxlength]
+		"Generate a random text from a collection of ngrams. Will stop when we've reached a dead-end or the text reaches maxlength."
+		(let [ngrammap (ngram-mapset ngrams (dec n))
+			  key (rand-nth (seq (keys ngrammap)))
+			  suffixset (get ngrammap key [])
+			  newword (and (seq suffixset) (rand-nth (seq suffixset)))]
+		  (generate-random-text-helper ngrammap maxlength (conj (vec key) newword))))
+
+Running some analysis on the Swift text, I have 4482 "sentences" in the text and 24247 keys in the generated 2-gram map. Also interesting is the list below which shows the length distributions in the map: e.g. we have 17925 entries in the map which for the respective key will have only one possible following word and 2 entries (keys) for which our random generator can chose from 60 possible followup words. You'll see the different sets for length 17 below. 
+
+	kata14-trigrams.core> (def swiftgrams (mapcat #(ngram %1 3)
+	  		                (tokenize-sentences 
+				             (take 4482
+				                (read-sentences swiftfile)))))
+    #'kata14-trigrams.core/swiftgrams
+    kata14-trigrams.core> (count (keys (ngram-mapset swiftgrams 2)))
+    24247
+	kata14-trigrams.core> (pprint (sort-by first (map (fn [[length entries]] [length (count entries)]) (group-by count (vals (ngram-mapset swiftgrams 2))))))
+	([0 1444]
+	[1 17925]
+	[2 2538]
+	[3 893]
+	... elided ...
+    [60 2]
+    ...
+    kata14-trigrams.core> (get (group-by count (vals (ngram-mapset swiftgrams 2))) 17)
+    [#{"finally" "I" "for" "storm" "promised" "was" "said" "mused" "really" "however" "retorted" "as" "and" "young" "though" "to" "remarked"} #{"were" "escaped" "be" "there" "in" "yet" "I" "had" "," "we" "at" "mingled" "and" "he" "belonged" "who" "you"} #{"a" "started" "what" "back" "that" "em" "worse" "any" "alarmed" "below" "the" "nervous" "half" "even" "to" "right" "on"} #{"but" "Mr" "from" "put" "Tom" "went" "wait" "and" "agreed" "replied" "cried" "declared" "when" "after" "he" "Higby" "admitted"} #{"swiftly" "no" "that" "they" "I" "was" "buoyant" "it" "we" "slowly" "the" "as" "Tom" "far" "to" "he" "you"} #{"help" "stop" "start" "come" "take" "pay" "go" "do" "depend" "make" "serve" "give" "tell" "believe" "avoid" "stay" "scour"} #{"a" "Mr" "active" "yells" "its" "sleeping" "huge" "enthusiasm" "nothing" "the" "Tom" "flashing" "nervous" "his" "sure" "documents" "something"} #{"road" "start" "advertisement" "view" "one" "place" "plan" "thrashing" "-" "thing" "tackle" "notion" "landing" "idea" "ship" "turn" "loser"}]
+
+Now, let's run the generator a few times and see what it produces:
+
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"representations concerning the copyright holder found at the latest mechanical affair in which Ned Newton , but too much it will take an extra propeller along after this task had been obtained , Tom ! called Miss Delafield ."
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"tracks . "
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"helping Mr ."
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"the edges by walking around ."
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"managing it , you haven ' you do something ?"
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"we drop down on them before and , carrying a heavy load ."
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"once the falling motion had been making some calculations regarding wind pressure , that had taken ."
+	kata14-trigrams.core> (generate-random-text swiftgrams 3 120)
+	"stormed the man turned off the airship that will go , of the next day on fitting up the brace and mounted his wheel , cried the sheriff having seen Tom Swift will wish he ' already laid claim to the village itself we can continue our journey , and play it all right ?"
+
+I was actually lucky this time, quite often I run into dead ends (as seen in my second and third try), which is not too surprising given how the data in the map is distributed. But still we got some silly sentences -- kata solved.

@@ -8,10 +8,10 @@
   ([squence n]
      (lazy-seq
       (ngram squence n [])))
-  ([squence n aux]
+  ([squence n acc]
      (if-let [sq (seq squence)]
-       (recur (rest sq) n (conj aux (take n sq)))
-       aux)))
+       (recur (rest sq) n (conj acc (take n sq)))
+       acc)))
 
 (defn split-on-whitespace
   "Take a string and split it's content on whitespace, removing the whitespace"
@@ -109,14 +109,14 @@
                (do (.close rdr) nil))))]
     (lfs-helper (clojure.java.io/reader x))))
 
-(defn inputs-to-future-ngrams 
+(defn inputs-to-future-ngrams
   "Convert a sequence of reader-readable inputs (files, urls, etc.) into future ngrams"
   [inputs n]
     (doall
-     (map 
+     (map
       #(future
-         (map 
-          (fn [tokens] 
+         (map
+          (fn [tokens]
             (ngram tokens n))
           (tokenize-sentences (read-sentences %1))))
       inputs)))
@@ -125,7 +125,11 @@
   "Takes a collection of ngrams and returns a map with prefixes of size 'prefixlength' to remainders."
   [ngrams prefixlength]
   (reduce (fn [m [k v]]
-            (assoc m k (union (get m k #{}) (set v))))
+            (let [oldv (get m k [0 #{}])
+                  newset (union (second oldv) (set v))
+                  length (count newset)
+                  newv [length newset]]
+            (assoc m k newv)))
           (hash-map)
           (map #(split-at prefixlength %) ngrams)))
 
@@ -141,7 +145,25 @@
 
 (defn ngram-mapset
   [ngrams pl]
-  (collect-mapset 
-   (fn [coll] 
-     (map #(split-at pl %1) coll)) 
+  (collect-mapset
+   (fn [coll]
+     (map #(split-at pl %1) coll))
    ngrams))
+
+(defn generate-random-text-helper [mapset ml result]
+  (if (>= (count result) ml)
+    (str/join " " result)
+    (let [prefix (take-last 2 result)
+          suffixes (get mapset prefix [])
+          newword (and (seq suffixes) (rand-nth (seq suffixes)))]
+      (if newword
+        (recur mapset ml (conj result newword))
+        (str/join " " result)))))
+
+(defn generate-random-text [ngrams n maxlength]
+  "Generate a random text from a collection of ngrams. Will stop when we've reached a dead-end or the text reaches maxlength."
+    (let [ngrammap (ngram-mapset ngrams (dec n))
+          key (rand-nth (seq (keys ngrammap)))
+          suffixset (get ngrammap key [])
+          newword (and (seq suffixset) (rand-nth (seq suffixset)))]
+      (generate-random-text-helper ngrammap maxlength (conj (vec key) newword))))
